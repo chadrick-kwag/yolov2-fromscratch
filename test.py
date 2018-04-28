@@ -6,25 +6,28 @@ import tensorflow as tf
 # input_layer = tf.reshape(inputs,[-1,416,416,3])
 
 
-input_layer = tf.placeholder(tf.float32,shape=(None,416,416,3))
+input_layer = tf.placeholder(tf.float32,shape=(None,416,416,3),name="input_batch")
+ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
 
-conv1 = tf.layers.conv2d(inputs=input_layer, filters=32, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
+output = tf.placeholder(tf.float32,shape=(None,13,13,30))
+
+conv1 = tf.layers.conv2d(inputs=input_layer, filters=32, kernel_size=[3,3], padding="same", activation=tf.nn.relu, name="conv_chad_1")
 
 pool1 = tf.layers.max_pooling2d(inputs=conv1,pool_size=[2,2],strides=2)
 
-conv2 = tf.layers.conv2d(inputs=pool1, filters=64, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
+conv2 = tf.layers.conv2d(inputs=pool1, filters=64, kernel_size=[3,3], padding="same", activation=tf.nn.relu, name="conv_chad_2")
 
-pool2 = tf.layers.max_pooling2d(inputs=conv2,pool_size=[2,2],strides=2)
+pool2 = tf.layers.max_pooling2d(inputs=conv2,pool_size=[2,2],strides=2, name="pool_chad_2")
 
-conv3 = tf.layers.conv2d(inputs=conv2, filters=128, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
+conv3 = tf.layers.conv2d(inputs=pool2, filters=128, kernel_size=[3,3], padding="same", activation=tf.nn.relu, name="conv_chad_3")
 
-conv4 = tf.layers.conv2d(inputs=conv3, filters=64, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
+conv4 = tf.layers.conv2d(inputs=conv3, filters=64, kernel_size=[1,1], padding="same", activation=tf.nn.relu, name="conv_chad_4")
 
 conv5 = tf.layers.conv2d(inputs=conv4, filters=128, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
 
 pool3 = tf.layers.max_pooling2d(inputs=conv5,pool_size=[2,2],strides=2)
 
-conv6 = tf.layers.conv2d(inputs=conv5, filters=256, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
+conv6 = tf.layers.conv2d(inputs=pool3, filters=256, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
 
 conv7 = tf.layers.conv2d(inputs=conv6, filters=128, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
 
@@ -32,7 +35,7 @@ conv8 = tf.layers.conv2d(inputs=conv7, filters=256, kernel_size=[3,3], padding="
 
 pool4 = tf.layers.max_pooling2d(inputs=conv8,pool_size=[2,2],strides=2)
 
-conv9 = tf.layers.conv2d(inputs=conv8, filters=512, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
+conv9 = tf.layers.conv2d(inputs=pool4, filters=512, kernel_size=[3,3], padding="same", activation=tf.nn.relu)
 
 conv10 = tf.layers.conv2d(inputs=conv9, filters=256, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
 
@@ -69,8 +72,38 @@ conv21 = tf.layers.conv2d(inputs=conv20, filters=1024, kernel_size=[3,3], paddin
 conv22 = tf.layers.conv2d(inputs=conv21, filters=30, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
 
 
+# the output is [-1,13,13,30]
+net_out = tf.identity(conv22,name="net_out")
 
 
+
+
+
+"""
+create loss function
+"""
+
+# all boxes have x,y,w,h,c,p values
+
+# get the GT raw array
+
+# get the loss
+difference = GT - output
+
+loss = difference ^2 # or something ...
+
+# optimize it.
+
+
+
+
+
+
+
+
+"""
+just trying to save the model here
+"""
 with tf.Session() as sess:
 	writer = tf.summary.FileWriter(logdir="./", graph=sess.graph)
 	writer.flush()

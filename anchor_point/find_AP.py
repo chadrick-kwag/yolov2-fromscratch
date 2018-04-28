@@ -21,6 +21,8 @@ def dist(a,b,ax=1):
 
 CSV_SAVE_FILE="tempsave.csv"
 
+AP_SAVE_CSV_FILE="anchor_points.csv"
+
 # csvfile = open(CSV_SAVE_FILE,newline='')
 # csvreader = csv.reader(csvfile)
 
@@ -44,10 +46,10 @@ Z = np.array(list(zip(xdata,ydata)))
 # print(xdata[0:3])
 # print(ydata[0:3])
 
-plt.scatter(xdata,ydata,c='black')
+# plt.scatter(xdata,ydata,c='black')
 
 
-k=3
+k=5
 
 xhighlimit = np.max(xdata)
 print(xhighlimit)
@@ -63,7 +65,7 @@ Cy = Cy * np.max(ydata)
 
 C = np.array(list(zip(Cx,Cy)), dtype=np.float32)
 
-plt.scatter(Cx,Cy,marker="*",s=200)
+# plt.scatter(Cx,Cy,marker="*",s=200)
 
 
 C_old = np.zeros(C.shape)
@@ -104,10 +106,27 @@ print("iteration finished")
 print("C={}".format(C))
 
 
+colors = ['r','g','b','y','c']
+
+for i in range(k):
+    points = np.array([Z[j] for j in range(len(Z)) if clusters[j]==i])
+    plt.scatter(points[:,0],points[:,1], s=7,c=colors[i])
 
 
+plt.scatter(C[:,0],C[:,1],marker="*",s=200,c='#000000')
 
 
+# save the APs in a csv file
 
+savecsvfile = open(AP_SAVE_CSV_FILE,'w')
+
+apcsvwriter = csv.writer(savecsvfile)
+
+for i in range(len(C)):
+    print(C[i])
+    apcsvwriter.writerow(C[i])
+
+savecsvfile.flush()
+savecsvfile.close()
 
 plt.show()
