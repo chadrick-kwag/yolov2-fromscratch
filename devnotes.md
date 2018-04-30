@@ -35,3 +35,12 @@ so there will be only one bestbox
 [-1,HW,B,C']
 C'=cx,cy,bw',bh',conf,pclass
 
+---
+update:2018-04-29 03:24:14+09:00
+
+okay inputloader, APmanager ready
+need to write the loss function code in NN code.
+
+---
+
+

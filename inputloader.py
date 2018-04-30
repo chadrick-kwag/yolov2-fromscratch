@@ -14,7 +14,6 @@ class InputLoader():
 
     search_directory='/home/chadrick/prj/darkflow_otherfiles/data/face_set/gather_all'
 
-    
 
 
     annotation_directory=os.path.join(search_directory,'annotations')
@@ -87,7 +86,7 @@ class InputLoader():
             gt_batch.append(gt)
             image_batch.append(resized_image)
         
-        return image_batch,gt_batch, epoch_end_signal
+        return image_batch, gt_batch, epoch_end_signal
 
 
         

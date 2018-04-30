@@ -12,7 +12,13 @@ def create_training_net():
     with graph.as_default():
 
         input_layer = tf.placeholder(tf.float32,shape=(None,416,416,3),name="input_batch")
-        ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
+        # ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
+        ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
+
+        input_placeholders = {
+            'input_layer': input_layer,
+            'ground_truth': ground_truth
+        }
 
         output = tf.placeholder(tf.float32,shape=(None,13,13,30))
 
@@ -80,7 +86,51 @@ def create_training_net():
         # the output is [-1,13,13,30]
         net_out = tf.identity(conv22,name="net_out")
 
-    return graph
+        net_out_reshaped = tf.reshape(net_out,[-1,13,13,5,6])
+
+        raw_coords = tf.reshape(net_out_reshaped[:,:,:,:,:4],[-1,13*13,5,4])
+
+        
+
+
+        # apply logistic function to coordinate predictions
+
+        # output of cx,cy should be 0< val < 1 since it is a relative value to the size of a single grid cell
+
+        # bw,by should also be 0<val<1 since it is a relative value to the width and height of the image
+
+        
+        coords = tf.nn.sigmoid(raw_coords,name="coord_pred_op")
+        coords = tf.identity(coords,name="coord_pred")
+
+        raw_conf = tf.reshape(net_out_reshaped[:,:,:,:,4],[-1,13*13,5,1],name="raw_conf")
+        conf = tf.nn.softmax(raw_conf,name="conf_pred_op")
+        conf = tf.identity(conf,name="conf_pred")
+
+        raw_pclass = tf.reshape(net_out_reshaped[:,:,:,:,5:],[-1,13*13,5,1],name="raw_pclass")
+        pclass = tf.nn.softmax(raw_pclass,name="pclass_pred_op")
+        pclass = tf.identity(pclass,name="pclass_pred")
+
+
+        # get loss function
+        # gt shape: [-1,13*13,5,6]
+        
+        gt_coords = tf.reshape(gt[:,:,:,0:4],[-1,13*13,5,4])
+        gt_conf = tf.reshape(gt[:,:,:,4],[-1,13*13,5,1])
+        gt_pclass = tf.reshape( gt[:,:,:,5], [-1,13*13,5,1] )
+
+        
+
+
+        notable_tensors={
+            'coord_pred': coords,
+            'conf_pred': conf,
+            'pclass_pred' : pclass
+        }
+
+
+
+    return graph, notable_tensors, input_placeholders
 
 
 
