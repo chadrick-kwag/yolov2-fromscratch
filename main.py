@@ -33,12 +33,17 @@ with tf.Session(graph=g1) as sess:
     
     sess.run(tf.global_variables_initializer())
 
-    fetches=[notable_tensors['coord_pred'], notable_tensors['conf_pred'], notable_tensors['pclass_pred']]
+    fetches=[notable_tensors['coord_pred'], notable_tensors['conf_pred'], 
+        notable_tensors['pclass_pred'],
+        notable_tensors['loss_coords']
+        
+        ]
 
-    coord_pred, conf_pred, pclass_pred = sess.run(fetches,feed_dict=feed_dict)
+    coord_pred, conf_pred, pclass_pred, loss_coords = sess.run(fetches,feed_dict=feed_dict)
 
     
     # print('coord_preds', coord_pred)
+    print('loss_coords',loss_coords)
 
 
 

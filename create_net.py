@@ -80,7 +80,7 @@ def create_training_net():
 
 
         # reason for 30: 5 boxes(for each anchor point) x 6(5(box coordinates+objectiveness)+1(class prediction. but one class))
-        conv22 = tf.layers.conv2d(inputs=conv21, filters=30, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
+        conv22 = tf.layers.conv2d(inputs=convt21, filters=30, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
 
 
         # the output is [-1,13,13,30]
@@ -119,13 +119,25 @@ def create_training_net():
         gt_conf = tf.reshape(gt[:,:,:,4],[-1,13*13,5,1])
         gt_pclass = tf.reshape( gt[:,:,:,5], [-1,13*13,5,1] )
 
+
+        loss_coords_1 = tf.subtract(gt_coords,coords)
+        loss_coords_2 = tf.pow(loss_coords_1,2)
+        loss_coords_3 = tf.reshape(loss_coords_2,[-1,13*13*5*4])
+        loss_coords_4 = tf.reduce_sum(loss_coords_3,axis=1)
+        loss_coords = tf.reduce_mean(loss_coords_4)
+
+
+        
+
+
         
 
 
         notable_tensors={
             'coord_pred': coords,
             'conf_pred': conf,
-            'pclass_pred' : pclass
+            'pclass_pred' : pclass,
+            'loss_coords': loss_coords
         }
 
 
