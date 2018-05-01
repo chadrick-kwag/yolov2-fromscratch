@@ -24,26 +24,29 @@ with tf.Session(graph=g1) as sess:
     #     'coord_pred' : g1.get_operation_by_name("coord_pred")
     # }
 
-    
+    steps = 50
 
     feed_dict = {
         input_holders['input_layer'] : image_input,
         input_holders['ground_truth'] : gt
     }
-    
+
     sess.run(tf.global_variables_initializer())
 
     fetches=[notable_tensors['coord_pred'], notable_tensors['conf_pred'], 
         notable_tensors['pclass_pred'],
-        notable_tensors['loss_coords']
-        
+        notable_tensors['loss_coords'],
+        notable_tensors['optimizing_op'],
+        notable_tensors['summary_op']
         ]
 
-    coord_pred, conf_pred, pclass_pred, loss_coords = sess.run(fetches,feed_dict=feed_dict)
+    for step in range(steps):
+        coord_pred, conf_pred, pclass_pred, loss_coords, _ , summary_result \
+            = sess.run(fetches,feed_dict=feed_dict)
 
-    
-    # print('coord_preds', coord_pred)
-    print('loss_coords',loss_coords)
+        writer.add_summary(summary_result,global_step=step)
+        # print('coord_preds', coord_pred)
+        print('step={} loss_coords={}'.format(step,loss_coords))
 
 
 

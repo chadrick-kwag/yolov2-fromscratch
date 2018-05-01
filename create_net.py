@@ -80,7 +80,7 @@ def create_training_net():
 
 
         # reason for 30: 5 boxes(for each anchor point) x 6(5(box coordinates+objectiveness)+1(class prediction. but one class))
-        conv22 = tf.layers.conv2d(inputs=convt21, filters=30, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
+        conv22 = tf.layers.conv2d(inputs=conv21, filters=30, kernel_size=[1,1], padding="same", activation=tf.nn.relu)
 
 
         # the output is [-1,13,13,30]
@@ -104,7 +104,7 @@ def create_training_net():
         coords = tf.identity(coords,name="coord_pred")
 
         raw_conf = tf.reshape(net_out_reshaped[:,:,:,:,4],[-1,13*13,5,1],name="raw_conf")
-        conf = tf.nn.softmax(raw_conf,name="conf_pred_op")
+        conf = tf.nn.sigmoid(raw_conf,name="conf_pred_op")
         conf = tf.identity(conf,name="conf_pred")
 
         raw_pclass = tf.reshape(net_out_reshaped[:,:,:,:,5:],[-1,13*13,5,1],name="raw_pclass")
@@ -115,29 +115,72 @@ def create_training_net():
         # get loss function
         # gt shape: [-1,13*13,5,6]
         
-        gt_coords = tf.reshape(gt[:,:,:,0:4],[-1,13*13,5,4])
-        gt_conf = tf.reshape(gt[:,:,:,4],[-1,13*13,5,1])
-        gt_pclass = tf.reshape( gt[:,:,:,5], [-1,13*13,5,1] )
+        gt_coords = tf.reshape(ground_truth[:,:,:,0:4],[-1,13*13,5,4])
+        gt_conf = tf.reshape(ground_truth[:,:,:,4],[-1,13*13,5,1])
+        gt_pclass = tf.reshape( ground_truth[:,:,:,5], [-1,13*13,5,1] )
 
+        #============
 
         loss_coords_1 = tf.subtract(gt_coords,coords)
         loss_coords_2 = tf.pow(loss_coords_1,2)
-        loss_coords_3 = tf.reshape(loss_coords_2,[-1,13*13*5*4])
-        loss_coords_4 = tf.reduce_sum(loss_coords_3,axis=1)
-        loss_coords = tf.reduce_mean(loss_coords_4)
+        loss_coords_3 = tf.reduce_sum(loss_coords_2,axis=1)
+        loss_coords = tf.reduce_mean(loss_coords_3)
+
+        #=============
+
+        loss_conf_1 = tf.subtract(gt_conf, conf)
+        loss_conf_2 = tf.pow(loss_conf_1,2)
+        loss_conf_3 = tf.reduce_sum(loss_conf_2,axis=1)
+        loss_conf = tf.reduce_mean(loss_conf_3)
+
+
+        #==============
+
+        loss_pclass_1 = tf.subtract(gt_pclass, pclass)
+        loss_pclass_2 = tf.pow(loss_pclass_1,2)
+        loss_pclass_3 = tf.reduce_sum(loss_pclass_2,axis=1)
+        loss_pclass = tf.reduce_mean(loss_pclass_3)
+
+
+        #===== total loss
+        loss = loss_coords + loss_conf + loss_pclass
+        
+
+
+        #======= setup optimizer
+
+        optimizer = tf.train.GradientDescentOptimizer(0.00001)
+
+        optimizing_op = optimizer.minimize(loss)
 
 
         
 
+        #============ accuracy calculation
+
+
+
+
+        #========= setup summary
+
+        tf.summary.scalar(name="loss_coords",tensor=loss_coords)
+        tf.summary.scalar(name="loss_conf",tensor=loss_conf)
+        tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
+        tf.summary.scalar(name="loss",tensor=loss)
+
+        summary_op = tf.summary.merge_all()
+
 
         
-
 
         notable_tensors={
             'coord_pred': coords,
             'conf_pred': conf,
             'pclass_pred' : pclass,
-            'loss_coords': loss_coords
+            'loss_coords': loss_coords,
+            'total_loss': loss,
+            'optimizing_op': optimizing_op,
+            'summary_op' : summary_op
         }
 
 
@@ -160,12 +203,6 @@ def create_training_net():
         # loss = difference ^2 # or something ...
 
         # # optimize it.
-
-
-
-
-
-
 
 
         # """
