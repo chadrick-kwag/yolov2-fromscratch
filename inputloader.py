@@ -212,22 +212,26 @@ class InputLoader():
                 y1 = y2
                 y2 = temp
 
-            print('x1',x1)
-            print('x2',x2)
+            # print('x1',x1)
+            # print('x2',x2)
 
             
             bw = abs(x1-x2)
             bh = abs(y1-y2)
 
-            print('bw',bw)
-            print('bh',bh)
+            # print('bw',bw)
+            # print('bh',bh)
+
+
+            single_grid_w = iw / grid_slice_num
+            single_grid_h = ih / grid_slice_num
 
             # thw bw,bh is the box width and height by the raw dimension
             # we need to resize this to match in the 416 x 416 dimension.
             # in other words, resized_bw and resized_bh is what the 
             # predition * AP should be
-            resized_bw = bw / iw
-            resized_bh = bh / ih
+            resized_bw = bw / single_grid_w
+            resized_bh = bh / single_grid_h
 
             # now we need to find which AP fits this best
             best_B_index = self.apmanager.best_matching_ap_index(resized_bw,resized_bh)
@@ -253,8 +257,7 @@ class InputLoader():
 
 
             # caculate relative cx, cy value
-            single_grid_w = iw / grid_slice_num
-            single_grid_h = ih / grid_slice_num
+            
 
             cxy_grid_topleft_x = single_grid_w * grid_x_index
             cxy_grid_topleft_y = single_grid_h * grid_y_index
@@ -293,6 +296,9 @@ class InputLoader():
             print("changed row",returnarray[center_xy_grid_index,:,:])
             # print('after populating..',returnarray)
             return returnarray
+
+    def get_ap_list(self):
+        return self.apmanager.get_ap_list()
             
 
 

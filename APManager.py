@@ -41,6 +41,8 @@ class APManager:
 
         retval = np.argmin(distance_list)
         return retval
+    def get_ap_list(self):
+        return self.AP_df.values
 
             
         

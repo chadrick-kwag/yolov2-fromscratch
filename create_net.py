@@ -15,9 +15,12 @@ def create_training_net():
         # ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
         ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
 
+        ap_list= tf.placeholder(tf.float32,shape=(5,2),name="ap_list")
+
         input_placeholders = {
             'input_layer': input_layer,
-            'ground_truth': ground_truth
+            'ground_truth': ground_truth,
+            'ap_list': ap_list
         }
 
         output = tf.placeholder(tf.float32,shape=(None,13,13,30))
@@ -100,9 +103,15 @@ def create_training_net():
         # bw,by should also be 0<val<1 since it is a relative value to the width and height of the image
 
         
-        coords = tf.nn.sigmoid(raw_coords,name="coord_pred_op")
-        coords = tf.identity(coords,name="coord_pred")
+        # coords = tf.nn.sigmoid(raw_coords,name="coord_pred_op")
+        pred_raw_cxy = tf.reshape(raw_coords[:,:,:,0:2],[-1,13*13,5,2])
+        pred_raw_wh = tf.reshape(raw_coords[:,:,:,2:4],[-1,13*13,5,2])
 
+        pred_normalized_cxy = tf.nn.sigmoid(pred_raw_cxy)
+        pred_before_ap_exped_wh = tf.exp(pred_raw_wh)
+        pred_after_ap_normalized_wh = tf.multiply(pred_before_ap_exped_wh,ap_list)
+
+        
         raw_conf = tf.reshape(net_out_reshaped[:,:,:,:,4],[-1,13*13,5,1],name="raw_conf")
         conf = tf.nn.sigmoid(raw_conf,name="conf_pred_op")
         conf = tf.identity(conf,name="conf_pred")
@@ -116,15 +125,38 @@ def create_training_net():
         # gt shape: [-1,13*13,5,6]
         
         gt_coords = tf.reshape(ground_truth[:,:,:,0:4],[-1,13*13,5,4])
+
+        # the g_cxy and gt_wh are already given as values relative to grid_cell_size(w&h)
+        gt_cxy = tf.reshape(gt_coords[:,:,:,0:2],[-1,13*13,5,2])
+        gt_wh = tf.reshape(gt_coords[:,:,:,2:4],[-1,13*13,5,2])
+
         gt_conf = tf.reshape(ground_truth[:,:,:,4],[-1,13*13,5,1])
+        gt_conf = tf.nn.sigmoid(gt_conf)
         gt_pclass = tf.reshape( ground_truth[:,:,:,5], [-1,13*13,5,1] )
 
         #============
 
-        loss_coords_1 = tf.subtract(gt_coords,coords)
-        loss_coords_2 = tf.pow(loss_coords_1,2)
-        loss_coords_3 = tf.reduce_sum(loss_coords_2,axis=1)
-        loss_coords = tf.reduce_mean(loss_coords_3)
+        # reminder: gt_cxy is already relative to grid_cell_size.
+        # therefore it is okay to work with pred_normalized_cxy which is also
+        # a value regarded to be relative to grid_cell_size
+        loss_cxy = tf.subtract(gt_cxy,pred_normalized_cxy)
+        loss_cxy = tf.pow(loss_cxy,2)
+        loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
+        loss_cxy = tf.reduce_mean(loss_cxy)
+
+        #============
+
+        # reminder: gt_wh is already relative to grid_cell_size
+        # therefore it is okay to work with pred_after_ap_normalized_wh which is also
+        # a value regarded to be relative to grid_cell_size
+        loss_wh = tf.subtract(gt_wh, pred_after_ap_normalized_wh)
+        loss_wh = tf.pow(loss_wh,2)
+        loss_wh = tf.reduce_sum(loss_wh,axis=1)
+        loss_wh = tf.reduce_mean(loss_wh)
+
+        #============
+
+        loss_coords = loss_wh + loss_cxy
 
         #=============
 
@@ -143,13 +175,13 @@ def create_training_net():
 
 
         #===== total loss
-        loss = loss_coords + loss_conf + loss_pclass
+        loss = loss_coords + 100* loss_conf + 100 * loss_pclass
         
 
 
         #======= setup optimizer
 
-        optimizer = tf.train.GradientDescentOptimizer(0.00001)
+        optimizer = tf.train.GradientDescentOptimizer(0.0001)
 
         optimizing_op = optimizer.minimize(loss)
 
@@ -157,6 +189,76 @@ def create_training_net():
         
 
         #============ accuracy calculation
+
+        # calculate x1,x2,y1,y2
+        
+        # use gt_cxy, gt_wh
+
+        # corner1: left top corner
+        # corner2: right bottom corner
+
+        gt_corner1 = gt_cxy - 0.5*gt_wh
+        pred_corner1 = pred_normalized_cxy - 0.5 * pred_after_ap_normalized_wh
+
+        gt_corner2 = gt_cxy + 0.5 * gt_wh
+        pred_corner2 = pred_normalized_cxy + 0.5 * pred_after_ap_normalized_wh
+
+        gt_area = gt_wh[:,:,:,0] * gt_wh[:,:,:,1]
+        gt_area = tf.reshape(gt_area,shape=[-1,13*13,5,1])
+
+        pred_area = pred_after_ap_normalized_wh[:,:,:,0] * pred_after_ap_normalized_wh[:,:,:,1]
+        pred_area = tf.reshape(pred_area, shape = [-1,13*13,5,1])
+
+        # copmare the corners and get the intersection
+
+        # intersection_corner1: the maximum from the two corner1
+        # intersection_corner2 : the minimum from the two corner2
+        intersection_corner1 = tf.maximum(gt_corner1, pred_corner1)
+        intersection_corner2 = tf.minimum(gt_corner2, pred_corner2)
+
+        intersection_wh= tf.subtract(intersection_corner2,intersection_corner1)
+        
+        intersection_area = tf.multiply(intersection_wh[:,:,:,0], intersection_wh[:,:,:,1])
+        intersection_area = tf.reshape(intersection_area,[-1,13*13,5,1])
+
+        total_area = gt_area + pred_area - intersection_area
+
+        # hmm... i'm a bit worried about the zero division...
+        iou = tf.divide(intersection_area, total_area, name="iou_op")
+
+        valid_iou_boolmask = tf.cast(tf.greater(iou,0.5),tf.float32,name="valid_iou_boolmask_op")
+        valid_iou = tf.multiply(valid_iou_boolmask, iou, name="valid_iou_op")
+
+        #====== get gt gt_box_exist_mask
+
+        gt_box_exist_mask = tf.cast(tf.greater(gt_conf,0.5), tf.float32)
+        gt_box_invert_exist_mask = 1.0 - gt_box_exist_mask
+
+        # gt_box_count = tf.reduce_sum(gt_box_exist_mask)
+        gt_box_count = tf.count_nonzero(gt_box_exist_mask)
+
+
+        #====== filter valid iou with gt_box_exist_mask in order to filter out non-gt boxes
+
+        # calculate correct_hit, incorrect_hit
+
+        correct_hit_iou = tf.multiply(valid_iou, gt_box_exist_mask,name="correct_hit_iou_op")
+        incorrect_hit_iou = tf.multiply(valid_iou, gt_box_invert_exist_mask,name="incorrect_hit_iou_op")
+
+        # calculate the count for corrent and incorrect
+
+        correct_hit_count = tf.count_nonzero(correct_hit_iou)
+        incorrect_hit_count = tf.count_nonzero(incorrect_hit_iou)
+
+
+        # get precision, recall 
+        # for info: https://en.wikipedia.org/wiki/Precision_and_recall
+
+        # precision: correct_hit / (correct_hit + incorrect_hit)
+        # recall: corect_hit / gt_box_count
+
+        precision = correct_hit_count / (correct_hit_count + incorrect_hit_count)
+        recall = correct_hit_count / gt_box_count
 
 
 
@@ -170,63 +272,25 @@ def create_training_net():
 
         summary_op = tf.summary.merge_all()
 
-
-        
-
+    
         notable_tensors={
-            'coord_pred': coords,
             'conf_pred': conf,
             'pclass_pred' : pclass,
             'loss_coords': loss_coords,
             'total_loss': loss,
             'optimizing_op': optimizing_op,
-            'summary_op' : summary_op
+            'summary_op' : summary_op,
+            'gt_box_count' : gt_box_count,
+            'correct_hit_count': correct_hit_count,
+            'incorrect_hit_count' : incorrect_hit_count,
+            'precision' : precision,
+            'recall': recall,
+            'iou': iou,
+            'valid_iou_boolmask': valid_iou_boolmask
         }
 
 
 
     return graph, notable_tensors, input_placeholders
-
-
-
-        # """
-        # create loss function
-        # """
-
-        # # all boxes have x,y,w,h,c,p values
-
-        # # get the GT raw array
-
-        # # get the loss
-        # difference = GT - output
-
-        # loss = difference ^2 # or something ...
-
-        # # optimize it.
-
-
-        # """
-        # just trying to save the model here
-        # """
-        # with tf.Session() as sess:
-        #     writer = tf.summary.FileWriter(logdir="./", graph=sess.graph)
-        #     writer.flush()
-
-        # print("end of code")
-
-
-        # # graph_def = tf.get_default_graph().as_graph_def()
-
-
-        # # init_op = tf.global_variables_initializer()
-
-        # # saver = tf.train.Saver()	
-
-        # # with tf.Session() as sess:
-        # # 	sess.run(init_op)
-        # # 	save_path = saver.save(sess.graph,"./model.ckpt")
-        # # 	print("saved in {}".format(save_path))
-
-
 
 
