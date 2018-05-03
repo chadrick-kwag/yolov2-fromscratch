@@ -42,7 +42,7 @@ with tf.Session(graph=g1,config=config) as sess:
     #     'coord_pred' : g1.get_operation_by_name("coord_pred")
     # }
 
-    steps = 100
+    steps = 1000
 
     feed_dict = {
         input_holders['input_layer'] : image_input,
@@ -74,14 +74,14 @@ with tf.Session(graph=g1,config=config) as sess:
         ]
 
     for step in range(steps):
-        conf_pred, pclass_pred, loss_coords, _ , summary_result, \
+        pred_conf, pclass_pred, loss_coords, _ , summary_result, \
             precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
             loss, iou, valid_iou_boolmask \
             = sess.run(fetches,feed_dict=feed_dict)
 
         writer.add_summary(summary_result,global_step=step)
         # print('coord_preds', coord_pred)
-        pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
+        pprint.pprint('step={} loss_conf={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
             step,loss,precision,recall, gt_box_count, 
             correct_hit_count, incorrect_hit_count))
     

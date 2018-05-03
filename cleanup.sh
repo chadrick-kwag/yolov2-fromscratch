@@ -1,0 +1,2 @@
+rm ckpt/*
+rm summary/*
