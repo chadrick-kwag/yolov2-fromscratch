@@ -37,6 +37,13 @@ class InputLoader():
         self.batch_num = batch_num
         self.apmanager = APManager()
 
+
+        if testcase == 0:
+            TEST_ANNOTATION_DIR='/home/chadrick/prj/tf_practice/yolov2-fromscratch/testdataset/annotations'
+            TEST_IMAGES_DIR ='/home/chadrick/prj/tf_practice/yolov2-fromscratch/testdataset/images'
+            self.annotation_directory = TEST_ANNOTATION_DIR
+            self.images_directory = TEST_IMAGES_DIR
+
         # return False if something is wrong
         # return True if it is okay
         # gather from the search_directory
@@ -80,13 +87,15 @@ class InputLoader():
 
         image_batch = []
         gt_batch = []
+        essence_batch = []
 
         for f in picked_files:
-            resized_image,gt= self.process_single_annotation_file(f,return_gt=True)
+            resized_image,gt, essence= self.process_single_annotation_file(f,return_gt=True)
             gt_batch.append(gt)
             image_batch.append(resized_image)
+            essence_batch.append(essence)
         
-        return image_batch, gt_batch, epoch_end_signal
+        return image_batch, gt_batch, epoch_end_signal, essence_batch
 
 
         
@@ -170,10 +179,10 @@ class InputLoader():
         if not return_gt:
             return resized_image,None
 
-        gt_return = self.process_gt_from_annotation_info(readjsonobj)
+        gt_return, essence = self.process_gt_from_annotation_info(readjsonobj)
         print('gt_return',gt_return)
 
-        return resized_image, gt_return
+        return resized_image, gt_return, essence
 
     
 
@@ -295,7 +304,12 @@ class InputLoader():
 
             print("changed row",returnarray[center_xy_grid_index,:,:])
             # print('after populating..',returnarray)
-            return returnarray
+
+            # also return the essence
+            essence = list()
+            essence.append([center_xy_grid_index,best_B_index,r_cx,r_cy,resized_bw,resized_bh])
+
+            return returnarray, essence
 
     def get_ap_list(self):
         return self.apmanager.get_ap_list()
