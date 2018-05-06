@@ -15,12 +15,24 @@ def create_training_net():
         # ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
         ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
 
+        essence = tf.placeholder(tf.float32,shape=(6),name="essence")
+
+        
+
+        gt_bbx_grid_index = tf.cast(essence[0],tf.int32)
+        gt_bbx_box_index = tf.cast(essence[1],tf.int32)
+        gt_bbx_coords = essence[2:]
+
+        early_gt_poi_array = ground_truth[0,gt_bbx_grid_index,gt_bbx_box_index,:]
+
+
         ap_list= tf.placeholder(tf.float32,shape=(5,2),name="ap_list")
 
         input_placeholders = {
             'input_layer': input_layer,
             'ground_truth': ground_truth,
-            'ap_list': ap_list
+            'ap_list': ap_list,
+            'essence': essence
         }
 
         output = tf.placeholder(tf.float32,shape=(None,13,13,30))
@@ -108,6 +120,7 @@ def create_training_net():
         pred_raw_wh = tf.reshape(raw_coords[:,:,:,2:4],[-1,13*13,5,2])
 
         pred_normalized_cxy = tf.nn.sigmoid(pred_raw_cxy)
+
         pred_before_ap_exped_wh = tf.exp(pred_raw_wh)
         pred_after_ap_normalized_wh = tf.multiply(pred_before_ap_exped_wh,ap_list)
 
@@ -131,20 +144,36 @@ def create_training_net():
         gt_cxy = tf.reshape(gt_coords[:,:,:,0:2],[-1,13*13,5,2])
         gt_wh = tf.reshape(gt_coords[:,:,:,2:4],[-1,13*13,5,2])
 
+        check1_poi_conf = ground_truth[0,gt_bbx_grid_index,gt_bbx_box_index,4]
+
         gt_conf = tf.reshape(ground_truth[:,:,:,4],[-1,13*13,5,1])
-        gt_conf = tf.nn.sigmoid(gt_conf)
+
+        check2_poi_conf = gt_conf[0,gt_bbx_grid_index, gt_bbx_box_index,0]
+
+        
         gt_pclass = tf.reshape( ground_truth[:,:,:,5], [-1,13*13,5,1] )
+
+        #============
+
+        # need to get the mask of gt
+        gt_mask = tf.equal(gt_conf,1.0)
+        gt_mask = tf.to_float(gt_mask)
+        gt_mask_true_count = tf.count_nonzero(gt_mask)
+
 
         #============
 
         # reminder: gt_cxy is already relative to grid_cell_size.
         # therefore it is okay to work with pred_normalized_cxy which is also
         # a value regarded to be relative to grid_cell_size
-        loss_cxy = tf.subtract(gt_cxy,pred_normalized_cxy)
-        loss_cxy = tf.pow(loss_cxy,2)
-        loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
-        loss_cxy = tf.reduce_mean(loss_cxy)
 
+        # loss_cxy = tf.subtract(gt_cxy,pred_normalized_cxy)
+        # loss_cxy = tf.pow(loss_cxy,2)
+        # loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
+        # loss_cxy = tf.reduce_mean(loss_cxy)
+
+        loss_cxy = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cxy, logits=pred_raw_cxy)
+        loss_cxy = tf.reduce_sum(loss_cxy)
         #============
 
         # reminder: gt_wh is already relative to grid_cell_size
@@ -157,7 +186,8 @@ def create_training_net():
 
         #============
 
-        loss_coords = loss_wh + loss_cxy
+        # loss_coords = loss_wh + loss_cxy
+        loss_coords = loss_cxy
 
         #=============
 
@@ -180,13 +210,13 @@ def create_training_net():
 
         #===== total loss
         # loss = loss_coords + 100* loss_conf + 100 * loss_pclass
-        loss = loss_conf
+        loss = loss_coords
         
 
 
         #======= setup optimizer
 
-        optimizer = tf.train.GradientDescentOptimizer(0.001)
+        optimizer = tf.train.GradientDescentOptimizer(0.00001)
 
         optimizing_op = optimizer.minimize(loss)
 
@@ -267,6 +297,21 @@ def create_training_net():
 
 
 
+        #===== debug_check
+
+        debug_gtbbx_iou = iou[:,gt_bbx_grid_index,gt_bbx_box_index,0]
+        debug_pred_normalized_cxy = pred_normalized_cxy[:,gt_bbx_grid_index, gt_bbx_box_index,:]
+        debug_pred_after_ap_normalized_wh = pred_after_ap_normalized_wh[:,gt_bbx_grid_index, gt_bbx_box_index,:]
+
+        debug_poi_cx= debug_pred_normalized_cxy[0,0]
+        debug_poi_cy = debug_pred_normalized_cxy[0,1]
+        debug_poi_rw= debug_pred_after_ap_normalized_wh[0,0]
+        debug_poi_rh = debug_pred_after_ap_normalized_wh[0,1]
+        debug_poi_iou = debug_gtbbx_iou[0]
+
+        debug_gt_poi_conf = gt_conf[0,gt_bbx_grid_index,gt_bbx_box_index,0]
+
+
 
         #========= setup summary
 
@@ -274,9 +319,13 @@ def create_training_net():
         tf.summary.scalar(name="loss_conf",tensor=loss_conf)
         tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
         tf.summary.scalar(name="loss",tensor=loss)
+        tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
+        tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
+        tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
+        tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
+        tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
 
         summary_op = tf.summary.merge_all()
-
     
         notable_tensors={
             'conf_pred': conf,
@@ -291,7 +340,18 @@ def create_training_net():
             'precision' : precision,
             'recall': recall,
             'iou': iou,
-            'valid_iou_boolmask': valid_iou_boolmask
+            'valid_iou_boolmask': valid_iou_boolmask,
+            'gt_bbx_grid_index': gt_bbx_grid_index,
+            'gt_bbx_box_index': gt_bbx_box_index,
+            'gt_bbx_coords': gt_bbx_coords,
+            'debug_gtbbx_iou': debug_gtbbx_iou,
+            'debug_pred_normalized_cxy': debug_pred_normalized_cxy,
+            'debug_pred_after_ap_normalized_wh': debug_pred_after_ap_normalized_wh,
+            'gt_mask_true_count': gt_mask_true_count,
+            'debug_gt_poi_conf':debug_gt_poi_conf,
+            'early_gt_poi_array':early_gt_poi_array,
+            'check1_poi_conf': check1_poi_conf,
+            'check2_poi_conf': check2_poi_conf
         }
 
 
