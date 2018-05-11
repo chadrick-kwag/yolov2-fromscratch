@@ -7,7 +7,7 @@ import os, pprint, sys
 
 # input_batch
 # gt_batch
-
+STEP_NUM = 1000000
 
 g1,notable_tensors, input_holders = create_training_net()
 
@@ -61,7 +61,7 @@ with tf.Session(graph=g1,config=config) as sess:
     #     'coord_pred' : g1.get_operation_by_name("coord_pred")
     # }
 
-    steps = 1000
+    steps = STEP_NUM
 
     print('essence:',essence)
     print('essence to pass on to:', essence[0][0])
@@ -78,8 +78,12 @@ with tf.Session(graph=g1,config=config) as sess:
     saver = tf.train.Saver()
 
         # if ckpt exist, then load from it
-    if os.path.exists(SAVE_PATH):
-        saver.restore(sess, SAVE_PATH)
+    
+        # saver.restore(sess, SAVE_PATH)
+    last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
+    if last_checkpoint is not None:
+        saver.restore(sess,last_checkpoint)
+        print("!!!!! restoring...!!! ")
 
 
     fetches=[ notable_tensors['conf_pred'], 
@@ -105,7 +109,17 @@ with tf.Session(graph=g1,config=config) as sess:
         notable_tensors['debug_gt_poi_conf'],
         notable_tensors['early_gt_poi_array'],
         notable_tensors['check1_poi_conf'],
-        notable_tensors['check2_poi_conf']
+        notable_tensors['check2_poi_conf'],
+        notable_tensors['check_poi_pred_w'],
+        notable_tensors['check_poi_pred_h'],
+        notable_tensors['check_poi_gt_w'],
+        notable_tensors['check_poi_gt_h'],
+        notable_tensors['total_loss'],
+        notable_tensors['debug_pred_raw_poi_w'],
+        notable_tensors['debug_pred_raw_poi_h'],
+        notable_tensors['debug_pred_after_exp_poi_w'],
+        notable_tensors['debug_pred_after_exp_poi_h'],
+        notable_tensors['loss_cxy_poi']
 
         ]
 
@@ -115,27 +129,47 @@ with tf.Session(graph=g1,config=config) as sess:
             loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
             , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
             ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
-            check1_poi_conf, check2_poi_conf \
+            check1_poi_conf, check2_poi_conf, \
+            check_poi_pred_w, check_poi_pred_h ,\
+            check_poi_gt_w, check_poi_gt_h, total_loss, \
+            debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
+            debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
+            , loss_cxy_poi \
             = sess.run(fetches,feed_dict=feed_dict)
 
         writer.add_summary(summary_result,global_step=step)
         # print('coord_preds', coord_pred)
+
+
+
         pprint.pprint('step={} loss_conf={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
             step,loss,precision,recall, gt_box_count, 
             correct_hit_count, incorrect_hit_count))
 
-        print('gt_bbx_grid_index',gt_bbx_grid_index)
-        print('gt_bbx_box_index',gt_bbx_box_index)
-        print('gt_bbx_coords',gt_bbx_coords)
+        print("total loss:", total_loss)
+
+        # print('gt_bbx_grid_index',gt_bbx_grid_index)
+        # print('gt_bbx_box_index',gt_bbx_box_index)
+        # print('gt_bbx_coords',gt_bbx_coords)
         print('debug_gtbbx_iou',debug_gtbbx_iou)
         print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
         print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
         print('gt_mask_true_count',gt_mask_true_count)
-        print('debug_gt_poi_conf',debug_gt_poi_conf)
-        print('early_gt_poi_array',early_gt_poi_array)
-        print('check1_poi_conf',check1_poi_conf)
-        print('check2_poi_conf',check2_poi_conf)
-    
+        # print('debug_gt_poi_conf',debug_gt_poi_conf)
+        # print('early_gt_poi_array',early_gt_poi_array)
+        # print('check1_poi_conf',check1_poi_conf)
+        # print('check2_poi_conf',check2_poi_conf)
+
+        print('check_poi_pred_w', check_poi_pred_w)
+        print('check_poi_pred_h', check_poi_pred_h)
+        print('check_poi_gt_w',check_poi_gt_w)
+        print('check_poi_gt_h', check_poi_gt_h)
+
+        print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
+        print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
+
+        print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
+        print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
 
     # after all the steps, save to ckpt
     save_path = saver.save(sess,SAVE_PATH)
