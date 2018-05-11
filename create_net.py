@@ -119,10 +119,23 @@ def create_training_net():
         pred_raw_cxy = tf.reshape(raw_coords[:,:,:,0:2],[-1,13*13,5,2])
         pred_raw_wh = tf.reshape(raw_coords[:,:,:,2:4],[-1,13*13,5,2])
 
+        debug_pred_raw_poi_w = pred_raw_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 0]
+        debug_pred_raw_poi_h = pred_raw_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 1]
+
+
         pred_normalized_cxy = tf.nn.sigmoid(pred_raw_cxy)
 
+        
+
         pred_before_ap_exped_wh = tf.exp(pred_raw_wh)
+
+        debug_pred_after_exp_poi_w = pred_before_ap_exped_wh[0, gt_bbx_grid_index, gt_bbx_box_index, 0]
+        debug_pred_after_exp_poi_h = pred_before_ap_exped_wh[0, gt_bbx_grid_index, gt_bbx_box_index, 1]
+
         pred_after_ap_normalized_wh = tf.multiply(pred_before_ap_exped_wh,ap_list)
+
+        check_poi_pred_w = pred_after_ap_normalized_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 0 ]
+        check_poi_pred_h = pred_after_ap_normalized_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 1 ]
 
         
         raw_conf = tf.reshape(net_out_reshaped[:,:,:,:,4],[-1,13*13,5,1],name="raw_conf")
@@ -145,6 +158,10 @@ def create_training_net():
         gt_wh = tf.reshape(gt_coords[:,:,:,2:4],[-1,13*13,5,2])
 
         check1_poi_conf = ground_truth[0,gt_bbx_grid_index,gt_bbx_box_index,4]
+        
+        check_poi_gt_w = gt_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 0]
+        check_poi_gt_h = gt_wh[0,gt_bbx_grid_index, gt_bbx_box_index, 1]
+
 
         gt_conf = tf.reshape(ground_truth[:,:,:,4],[-1,13*13,5,1])
 
@@ -172,22 +189,45 @@ def create_training_net():
         # loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
         # loss_cxy = tf.reduce_mean(loss_cxy)
 
-        loss_cxy = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cxy, logits=pred_raw_cxy)
-        loss_cxy = tf.reduce_sum(loss_cxy)
+        #lets mask it
+        pred_raw_cxy_masked = pred_raw_cxy * gt_mask
+
+        loss_cxy_array = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cxy, logits=pred_raw_cxy_masked)
+        loss_cxy_array = loss_cxy_array * gt_mask
+        loss_cxy = tf.reduce_sum(loss_cxy_array)
+        
+        loss_cxy = tf.Print(loss_cxy, [loss_cxy], "loss_cxy:")
+
+        loss_cxy_poi = loss_cxy_array[:,gt_bbx_grid_index, gt_bbx_box_index, :]
+        loss_cxy_poi = tf.Print(loss_cxy_poi,[loss_cxy_poi], "los_cxy_poi")
         #============
 
         # reminder: gt_wh is already relative to grid_cell_size
         # therefore it is okay to work with pred_after_ap_normalized_wh which is also
         # a value regarded to be relative to grid_cell_size
-        loss_wh = tf.subtract(gt_wh, pred_after_ap_normalized_wh)
-        loss_wh = tf.pow(loss_wh,2)
-        loss_wh = tf.reduce_sum(loss_wh,axis=1)
-        loss_wh = tf.reduce_mean(loss_wh)
+        # loss_wh = tf.subtract(gt_wh, pred_after_ap_normalized_wh)
+        # loss_wh = tf.pow(loss_wh,2)
+        # loss_wh = tf.reduce_sum(loss_wh,axis=1)
+        # loss_wh = tf.reduce_mean(loss_wh)
+        # loss_wh = tf.nn.l2_loss(loss_wh)
+        # loss_wh = tf.reduce_sum(loss_wh)
+
+
+        pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
+
+        # let's not mask it.
+        # pred_wh_masked = pred_after_ap_normalized_wh
+        loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_wh_masked)
+
+        loss_wh = tf.Print(loss_wh, [loss_wh], "loss_wh:")
+
+  
 
         #============
 
         # loss_coords = loss_wh + loss_cxy
-        loss_coords = loss_cxy
+        # loss_coords = 10*loss_wh + loss_cxy
+        loss_coords = loss_cxy + loss_wh
 
         #=============
 
@@ -216,7 +256,7 @@ def create_training_net():
 
         #======= setup optimizer
 
-        optimizer = tf.train.GradientDescentOptimizer(0.00001)
+        optimizer = tf.train.GradientDescentOptimizer(0.0001)
 
         optimizing_op = optimizer.minimize(loss)
 
@@ -351,7 +391,16 @@ def create_training_net():
             'debug_gt_poi_conf':debug_gt_poi_conf,
             'early_gt_poi_array':early_gt_poi_array,
             'check1_poi_conf': check1_poi_conf,
-            'check2_poi_conf': check2_poi_conf
+            'check2_poi_conf': check2_poi_conf,
+            'check_poi_pred_w': check_poi_pred_w,
+            'check_poi_pred_h': check_poi_pred_h,
+            'check_poi_gt_w': check_poi_gt_w,
+            'check_poi_gt_h': check_poi_gt_h,
+            'debug_pred_raw_poi_w': debug_pred_raw_poi_w,
+            'debug_pred_raw_poi_h': debug_pred_raw_poi_h,
+            'debug_pred_after_exp_poi_w': debug_pred_after_exp_poi_w,
+            'debug_pred_after_exp_poi_h': debug_pred_after_exp_poi_h,
+            'loss_cxy_poi': loss_cxy_poi
         }
 
 
