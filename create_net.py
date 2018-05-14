@@ -143,9 +143,15 @@ def create_training_net():
         conf = raw_conf
         conf = tf.identity(conf,name="conf_pred")
 
+
+
+
         raw_pclass = tf.reshape(net_out_reshaped[:,:,:,:,5:],[-1,13*13,5,1],name="raw_pclass")
         pclass = tf.nn.softmax(raw_pclass,name="pclass_pred_op")
         pclass = tf.identity(pclass,name="pclass_pred")
+
+        pclass_poi = pclass[:,gt_bbx_grid_index, gt_bbx_box_index, :]
+        pclass_poi = tf.Print(pclass_poi, [pclass_poi], "pclass_poi:")
 
 
         # get loss function
@@ -184,10 +190,6 @@ def create_training_net():
         # therefore it is okay to work with pred_normalized_cxy which is also
         # a value regarded to be relative to grid_cell_size
 
-        # loss_cxy = tf.subtract(gt_cxy,pred_normalized_cxy)
-        # loss_cxy = tf.pow(loss_cxy,2)
-        # loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
-        # loss_cxy = tf.reduce_mean(loss_cxy)
 
         #lets mask it
         pred_raw_cxy_masked = pred_raw_cxy * gt_mask
@@ -202,61 +204,60 @@ def create_training_net():
         loss_cxy_poi = tf.Print(loss_cxy_poi,[loss_cxy_poi], "los_cxy_poi")
         #============
 
-        # reminder: gt_wh is already relative to grid_cell_size
-        # therefore it is okay to work with pred_after_ap_normalized_wh which is also
-        # a value regarded to be relative to grid_cell_size
-        # loss_wh = tf.subtract(gt_wh, pred_after_ap_normalized_wh)
-        # loss_wh = tf.pow(loss_wh,2)
-        # loss_wh = tf.reduce_sum(loss_wh,axis=1)
-        # loss_wh = tf.reduce_mean(loss_wh)
-        # loss_wh = tf.nn.l2_loss(loss_wh)
-        # loss_wh = tf.reduce_sum(loss_wh)
 
 
         pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
 
-        # let's not mask it.
-        # pred_wh_masked = pred_after_ap_normalized_wh
         loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_wh_masked)
-
-        loss_wh = tf.Print(loss_wh, [loss_wh], "loss_wh:")
 
   
 
         #============
 
-        # loss_coords = loss_wh + loss_cxy
-        # loss_coords = 10*loss_wh + loss_cxy
         loss_coords = loss_cxy + loss_wh
 
         #=============
 
-        # loss_conf_1 = tf.subtract(gt_conf, conf)
-        # loss_conf_2 = tf.pow(loss_conf_1,2)
-        # loss_conf_3 = tf.reduce_sum(loss_conf_2,axis=1)
-        # loss_conf = tf.reduce_mean(loss_conf_3)
+        pred_conf_poi = conf[:,gt_bbx_grid_index, gt_bbx_box_index, :]
+        pred_conf_poi = tf.Print(pred_conf_poi, [pred_conf_poi], "pred_conf_poi:")
+
+        gt_conf_poi = gt_conf[:,gt_bbx_grid_index, gt_bbx_box_index, :]
+        gt_conf_poi = tf.Print(gt_conf_poi, [gt_conf_poi], "gt_conf_poi:")
+
+        
 
         loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
         loss_conf = tf.reduce_sum(loss_conf)
+        loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf:")
 
 
-        #==============
+        #==============pclass legacy code
+        
 
-        loss_pclass_1 = tf.subtract(gt_pclass, pclass)
-        loss_pclass_2 = tf.pow(loss_pclass_1,2)
-        loss_pclass_3 = tf.reduce_sum(loss_pclass_2,axis=1)
-        loss_pclass = tf.reduce_mean(loss_pclass_3)
+        # loss_pclass = tf.nn.softmax_cross_entropy_with_logits(labels=gt_pclass,logits=raw_pclass)
+        
+        # loss_pclass_poi = loss_pclass[:, gt_bbx_grid_index, gt_bbx_box_index]
+        # loss_pclass_poi = tf.Print(loss_pclass_poi, [loss_pclass_poi], "loss_pclass_poi=")
+        
+        # gt_mask_reshaped = tf.reshape(gt_mask,shape=[-1,13*13,5])
+
+        # loss_pclass = loss_pclass * gt_mask_reshaped
+
+        # loss_pclass = tf.reduce_sum(loss_pclass)
+
+
 
 
         #===== total loss
-        # loss = loss_coords + 100* loss_conf + 100 * loss_pclass
-        loss = loss_coords
-        
+     
+        loss = loss_coords + loss_conf
+
+
 
 
         #======= setup optimizer
 
-        optimizer = tf.train.GradientDescentOptimizer(0.0001)
+        optimizer = tf.train.GradientDescentOptimizer(0.000001)
 
         optimizing_op = optimizer.minimize(loss)
 
@@ -357,19 +358,19 @@ def create_training_net():
 
         tf.summary.scalar(name="loss_coords",tensor=loss_coords)
         tf.summary.scalar(name="loss_conf",tensor=loss_conf)
-        tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
+        # tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
         tf.summary.scalar(name="loss",tensor=loss)
-        tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
-        tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
-        tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
-        tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
-        tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
+        
+        # tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
+        # tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
+        # tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
+        # tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
+        # tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
 
         summary_op = tf.summary.merge_all()
     
         notable_tensors={
             'conf_pred': conf,
-            'pclass_pred' : pclass,
             'loss_coords': loss_coords,
             'total_loss': loss,
             'optimizing_op': optimizing_op,
@@ -400,7 +401,10 @@ def create_training_net():
             'debug_pred_raw_poi_h': debug_pred_raw_poi_h,
             'debug_pred_after_exp_poi_w': debug_pred_after_exp_poi_w,
             'debug_pred_after_exp_poi_h': debug_pred_after_exp_poi_h,
-            'loss_cxy_poi': loss_cxy_poi
+            'loss_cxy_poi': loss_cxy_poi,
+            'pred_conf_poi': pred_conf_poi,
+            'gt_conf_poi': gt_conf_poi
+            
         }
 
 
