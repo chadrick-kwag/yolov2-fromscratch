@@ -8,6 +8,7 @@ import os, pprint, sys
 # input_batch
 # gt_batch
 STEP_NUM = 1000000
+# STEP_NUM = 1
 
 g1,notable_tensors, input_holders = create_training_net()
 
@@ -87,7 +88,6 @@ with tf.Session(graph=g1,config=config) as sess:
 
 
     fetches=[ notable_tensors['conf_pred'], 
-        notable_tensors['pclass_pred'],
         notable_tensors['loss_coords'],
         notable_tensors['optimizing_op'],
         notable_tensors['summary_op'],
@@ -119,12 +119,16 @@ with tf.Session(graph=g1,config=config) as sess:
         notable_tensors['debug_pred_raw_poi_h'],
         notable_tensors['debug_pred_after_exp_poi_w'],
         notable_tensors['debug_pred_after_exp_poi_h'],
-        notable_tensors['loss_cxy_poi']
+        notable_tensors['loss_cxy_poi'],
+        notable_tensors['pred_conf_poi'],
+        notable_tensors['gt_conf_poi'],
+        
+
 
         ]
 
     for step in range(steps):
-        pred_conf, pclass_pred, loss_coords, _ , summary_result, \
+        pred_conf, loss_coords, _ , summary_result, \
             precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
             loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
             , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
@@ -134,7 +138,7 @@ with tf.Session(graph=g1,config=config) as sess:
             check_poi_gt_w, check_poi_gt_h, total_loss, \
             debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
             debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
-            , loss_cxy_poi \
+            , loss_cxy_poi , pred_conf_poi, gt_conf_poi\
             = sess.run(fetches,feed_dict=feed_dict)
 
         writer.add_summary(summary_result,global_step=step)
