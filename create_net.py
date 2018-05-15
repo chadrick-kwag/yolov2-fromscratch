@@ -196,12 +196,14 @@ def create_training_net():
 
         loss_cxy_array = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cxy, logits=pred_raw_cxy_masked)
         loss_cxy_array = loss_cxy_array * gt_mask
-        loss_cxy = tf.reduce_sum(loss_cxy_array)
+        loss_cxy = tf.reshape(loss_cxy_array, shape=[-1,13*13*5*2])
+        loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
+        loss_cxy = tf.reduce_mean(loss_cxy)
         
-        loss_cxy = tf.Print(loss_cxy, [loss_cxy], "loss_cxy:")
+        loss_cxy = tf.Print(loss_cxy, [loss_cxy], "loss_cxy=")
 
         loss_cxy_poi = loss_cxy_array[:,gt_bbx_grid_index, gt_bbx_box_index, :]
-        loss_cxy_poi = tf.Print(loss_cxy_poi,[loss_cxy_poi], "los_cxy_poi")
+        # loss_cxy_poi = tf.Print(loss_cxy_poi,[loss_cxy_poi], "loss_cxy_poi")
         #============
 
 
@@ -209,6 +211,7 @@ def create_training_net():
         pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
 
         loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_wh_masked)
+        loss_wh = tf.Print(loss_wh, [loss_wh], "loss_wh=")
 
   
 
@@ -219,16 +222,18 @@ def create_training_net():
         #=============
 
         pred_conf_poi = conf[:,gt_bbx_grid_index, gt_bbx_box_index, :]
-        pred_conf_poi = tf.Print(pred_conf_poi, [pred_conf_poi], "pred_conf_poi:")
+        # pred_conf_poi = tf.Print(pred_conf_poi, [pred_conf_poi], "pred_conf_poi:")
 
         gt_conf_poi = gt_conf[:,gt_bbx_grid_index, gt_bbx_box_index, :]
-        gt_conf_poi = tf.Print(gt_conf_poi, [gt_conf_poi], "gt_conf_poi:")
+        # gt_conf_poi = tf.Print(gt_conf_poi, [gt_conf_poi], "gt_conf_poi:")
 
         
 
         loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
-        loss_conf = tf.reduce_sum(loss_conf)
-        loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf:")
+        loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
+        loss_conf = tf.reduce_sum(loss_conf, axis=1)
+        loss_conf = tf.reduce_mean(loss_conf)
+        loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf=")
 
 
         #==============pclass legacy code
@@ -251,6 +256,7 @@ def create_training_net():
         #===== total loss
      
         loss = loss_coords + loss_conf
+        loss = tf.Print(loss,[loss], "loss=")
 
 
 
@@ -296,6 +302,7 @@ def create_training_net():
         
         intersection_area = tf.multiply(intersection_wh[:,:,:,0], intersection_wh[:,:,:,1])
         intersection_area = tf.reshape(intersection_area,[-1,13*13,5,1])
+        intersection_area = intersection_area + 1e-14
 
         total_area = gt_area + pred_area - intersection_area
 
@@ -319,12 +326,26 @@ def create_training_net():
         # calculate correct_hit, incorrect_hit
 
         correct_hit_iou = tf.multiply(valid_iou, gt_box_exist_mask,name="correct_hit_iou_op")
+        
         incorrect_hit_iou = tf.multiply(valid_iou, gt_box_invert_exist_mask,name="incorrect_hit_iou_op")
+
+        poi_iou = iou * gt_mask
+        # sine there will be only one object, we simplify the caculation
+        poi_iou = tf.reshape(poi_iou, shape=[-1,13*13*5])
+        poi_iou = tf.reduce_sum(poi_iou,axis=1)
+        poi_iou = tf.Print(poi_iou,[poi_iou],"poi_iou_vector")
+        poi_iou_average = tf.reduce_mean(poi_iou)
+        
+
+
 
         # calculate the count for corrent and incorrect
 
         correct_hit_count = tf.count_nonzero(correct_hit_iou)
         incorrect_hit_count = tf.count_nonzero(incorrect_hit_iou)
+
+        # correct_hit_iou_average = tf.reduce_sum(correct_hit_iou) / tf.cast(correct_hit_count, tf.float32)
+
 
 
         # get precision, recall 
@@ -335,8 +356,6 @@ def create_training_net():
 
         precision = correct_hit_count / (correct_hit_count + incorrect_hit_count)
         recall = correct_hit_count / gt_box_count
-
-
 
         #===== debug_check
 
@@ -355,7 +374,8 @@ def create_training_net():
 
 
         #========= setup summary
-
+        tf.summary.scalar(name="loss_cxy", tensor= loss_cxy)
+        tf.summary.scalar(name="loss_rwh", tensor = loss_wh)
         tf.summary.scalar(name="loss_coords",tensor=loss_coords)
         tf.summary.scalar(name="loss_conf",tensor=loss_conf)
         # tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
@@ -366,6 +386,12 @@ def create_training_net():
         # tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
         # tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
         # tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
+
+        tf.summary.scalar(name="precision", tensor = precision)
+        tf.summary.scalar(name="recall", tensor = recall)
+        tf.summary.scalar(name="poi_iou_average", tensor=poi_iou_average)
+        tf.summary.scalar(name="incorrect_hit_count", tensor=incorrect_hit_count)
+        # tf.summary.scalar(name="correct_hit_iou_average", tensor = correct_hit_iou_average)
 
         summary_op = tf.summary.merge_all()
     

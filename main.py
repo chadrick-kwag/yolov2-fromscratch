@@ -12,7 +12,7 @@ STEP_NUM = 1000000
 
 g1,notable_tensors, input_holders = create_training_net()
 
-inputloader = InputLoader(testcase=0)
+inputloader = InputLoader(batch_num=5)
 
 image_input, gt, _ , essence = inputloader.get_image_and_gt()
 
@@ -38,7 +38,9 @@ print('gt_poi_conf',gt_poi_conf)
 ap_list = inputloader.get_ap_list()
 
 # print('ap_list',ap_list)
-SAVE_PATH="./ckpt/model.ckpt"
+attempt_num=1
+attempt_num_padded="{:03d}".format(attempt_num)
+SAVE_PATH="./ckpt/model-{}.ckpt".format(attempt_num_padded)
 
 
 #=== setup gpu configuration
@@ -146,38 +148,39 @@ with tf.Session(graph=g1,config=config) as sess:
 
 
 
-        pprint.pprint('step={} loss_conf={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
+        pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
             step,loss,precision,recall, gt_box_count, 
             correct_hit_count, incorrect_hit_count))
 
-        print("total loss:", total_loss)
+        # print("total loss:", total_loss)
 
         # print('gt_bbx_grid_index',gt_bbx_grid_index)
         # print('gt_bbx_box_index',gt_bbx_box_index)
         # print('gt_bbx_coords',gt_bbx_coords)
-        print('debug_gtbbx_iou',debug_gtbbx_iou)
-        print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
-        print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
-        print('gt_mask_true_count',gt_mask_true_count)
+        # print('debug_gtbbx_iou',debug_gtbbx_iou)
+        # print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
+        # print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
+        # print('gt_mask_true_count',gt_mask_true_count)
         # print('debug_gt_poi_conf',debug_gt_poi_conf)
         # print('early_gt_poi_array',early_gt_poi_array)
         # print('check1_poi_conf',check1_poi_conf)
         # print('check2_poi_conf',check2_poi_conf)
 
-        print('check_poi_pred_w', check_poi_pred_w)
-        print('check_poi_pred_h', check_poi_pred_h)
-        print('check_poi_gt_w',check_poi_gt_w)
-        print('check_poi_gt_h', check_poi_gt_h)
+        # print('check_poi_pred_w', check_poi_pred_w)
+        # print('check_poi_pred_h', check_poi_pred_h)
+        # print('check_poi_gt_w',check_poi_gt_w)
+        # print('check_poi_gt_h', check_poi_gt_h)
 
-        print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
-        print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
+        # print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
+        # print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
 
-        print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
-        print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
+        # print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
+        # print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
 
-    # after all the steps, save to ckpt
-    save_path = saver.save(sess,SAVE_PATH)
-    print("model saved to {}".format(save_path))
+        # after all the steps, save to ckpt
+        if step % 1000 ==0:
+            save_path = saver.save(sess,SAVE_PATH, global_step=step)
+            print("model saved to {}".format(save_path))
 
 
 
