@@ -330,6 +330,7 @@ def create_training_net():
         incorrect_hit_iou = tf.multiply(valid_iou, gt_box_invert_exist_mask,name="incorrect_hit_iou_op")
 
         poi_iou = iou * gt_mask
+        poi_iou_rawform = poi_iou
         # sine there will be only one object, we simplify the caculation
         poi_iou = tf.reshape(poi_iou, shape=[-1,13*13*5])
         poi_iou = tf.reduce_sum(poi_iou,axis=1)
@@ -369,6 +370,8 @@ def create_training_net():
         debug_poi_rh = debug_pred_after_ap_normalized_wh[0,1]
         debug_poi_iou = debug_gtbbx_iou[0]
 
+        debug_poi_iou = tf.Print(debug_poi_iou, [debug_poi_iou], "debug_poi_iou=")
+
         debug_gt_poi_conf = gt_conf[0,gt_bbx_grid_index,gt_bbx_box_index,0]
 
 
@@ -381,11 +384,11 @@ def create_training_net():
         # tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
         tf.summary.scalar(name="loss",tensor=loss)
         
-        # tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
-        # tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
-        # tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
-        # tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
-        # tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
+        tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
+        tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
+        tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
+        tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
+        tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
 
         tf.summary.scalar(name="precision", tensor = precision)
         tf.summary.scalar(name="recall", tensor = recall)
@@ -429,7 +432,10 @@ def create_training_net():
             'debug_pred_after_exp_poi_h': debug_pred_after_exp_poi_h,
             'loss_cxy_poi': loss_cxy_poi,
             'pred_conf_poi': pred_conf_poi,
-            'gt_conf_poi': gt_conf_poi
+            'gt_conf_poi': gt_conf_poi,
+            'gt_mask': gt_mask,
+            'poi_iou': poi_iou,
+            'poi_iou_rawform': poi_iou_rawform
             
         }
 

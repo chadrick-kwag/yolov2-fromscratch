@@ -1,9 +1,13 @@
 from create_net import create_training_net
 import tensorflow as tf
+import numpy as np
 from inputloader import InputLoader
 import os, pprint, sys
 
 # load the input and GT
+
+
+np_array_save_file = 'NP_SAVE.txt'
 
 # input_batch
 # gt_batch
@@ -124,6 +128,9 @@ with tf.Session(graph=g1,config=config) as sess:
         notable_tensors['loss_cxy_poi'],
         notable_tensors['pred_conf_poi'],
         notable_tensors['gt_conf_poi'],
+        notable_tensors['gt_mask'],
+        notable_tensors['poi_iou'],
+        notable_tensors['poi_iou_rawform']
         
 
 
@@ -140,7 +147,8 @@ with tf.Session(graph=g1,config=config) as sess:
             check_poi_gt_w, check_poi_gt_h, total_loss, \
             debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
             debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
-            , loss_cxy_poi , pred_conf_poi, gt_conf_poi\
+            , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
+            , poi_iou_rawform \
             = sess.run(fetches,feed_dict=feed_dict)
 
         writer.add_summary(summary_result,global_step=step)
@@ -176,6 +184,12 @@ with tf.Session(graph=g1,config=config) as sess:
 
         # print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
         # print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
+
+        # print("gt_mask shape=",gt_mask.shape)
+
+        
+        # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
+        # print("gt_mask saved")
 
         # after all the steps, save to ckpt
         if step % 1000 ==0:
