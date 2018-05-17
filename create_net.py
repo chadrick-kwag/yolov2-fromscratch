@@ -217,7 +217,8 @@ def create_training_net():
 
         #============
 
-        loss_coords = loss_cxy + loss_wh
+        # loss_coords = loss_cxy + loss_wh
+        loss_coords = loss_wh
 
         #=============
 
@@ -262,7 +263,7 @@ def create_training_net():
 
 
         #======= setup optimizer
-
+        # learning rate
         optimizer = tf.train.GradientDescentOptimizer(0.000001)
 
         optimizing_op = optimizer.minimize(loss)
