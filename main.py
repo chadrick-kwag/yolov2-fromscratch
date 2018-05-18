@@ -136,65 +136,71 @@ with tf.Session(graph=g1,config=config) as sess:
 
         ]
 
-    for step in range(steps):
-        pred_conf, loss_coords, _ , summary_result, \
-            precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
-            loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
-            , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
-            ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
-            check1_poi_conf, check2_poi_conf, \
-            check_poi_pred_w, check_poi_pred_h ,\
-            check_poi_gt_w, check_poi_gt_h, total_loss, \
-            debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
-            debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
-            , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
-            , poi_iou_rawform \
-            = sess.run(fetches,feed_dict=feed_dict)
 
-        writer.add_summary(summary_result,global_step=step)
-        # print('coord_preds', coord_pred)
+    try:
+
+        for step in range(steps):
+            pred_conf, loss_coords, _ , summary_result, \
+                precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
+                loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
+                , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
+                ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
+                check1_poi_conf, check2_poi_conf, \
+                check_poi_pred_w, check_poi_pred_h ,\
+                check_poi_gt_w, check_poi_gt_h, total_loss, \
+                debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
+                debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
+                , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
+                , poi_iou_rawform \
+                = sess.run(fetches,feed_dict=feed_dict)
+
+            writer.add_summary(summary_result,global_step=step)
+            # print('coord_preds', coord_pred)
 
 
 
-        pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
-            step,loss,precision,recall, gt_box_count, 
-            correct_hit_count, incorrect_hit_count))
+            pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
+                step,loss,precision,recall, gt_box_count, 
+                correct_hit_count, incorrect_hit_count))
 
-        # print("total loss:", total_loss)
+            # print("total loss:", total_loss)
 
-        # print('gt_bbx_grid_index',gt_bbx_grid_index)
-        # print('gt_bbx_box_index',gt_bbx_box_index)
-        # print('gt_bbx_coords',gt_bbx_coords)
-        # print('debug_gtbbx_iou',debug_gtbbx_iou)
-        # print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
-        # print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
-        # print('gt_mask_true_count',gt_mask_true_count)
-        # print('debug_gt_poi_conf',debug_gt_poi_conf)
-        # print('early_gt_poi_array',early_gt_poi_array)
-        # print('check1_poi_conf',check1_poi_conf)
-        # print('check2_poi_conf',check2_poi_conf)
+            # print('gt_bbx_grid_index',gt_bbx_grid_index)
+            # print('gt_bbx_box_index',gt_bbx_box_index)
+            # print('gt_bbx_coords',gt_bbx_coords)
+            # print('debug_gtbbx_iou',debug_gtbbx_iou)
+            # print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
+            # print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
+            # print('gt_mask_true_count',gt_mask_true_count)
+            # print('debug_gt_poi_conf',debug_gt_poi_conf)
+            # print('early_gt_poi_array',early_gt_poi_array)
+            # print('check1_poi_conf',check1_poi_conf)
+            # print('check2_poi_conf',check2_poi_conf)
 
-        # print('check_poi_pred_w', check_poi_pred_w)
-        # print('check_poi_pred_h', check_poi_pred_h)
-        # print('check_poi_gt_w',check_poi_gt_w)
-        # print('check_poi_gt_h', check_poi_gt_h)
+            # print('check_poi_pred_w', check_poi_pred_w)
+            # print('check_poi_pred_h', check_poi_pred_h)
+            # print('check_poi_gt_w',check_poi_gt_w)
+            # print('check_poi_gt_h', check_poi_gt_h)
 
-        # print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
-        # print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
+            # print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
+            # print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
 
-        # print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
-        # print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
+            # print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
+            # print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
 
-        # print("gt_mask shape=",gt_mask.shape)
+            # print("gt_mask shape=",gt_mask.shape)
 
-        
-        # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
-        # print("gt_mask saved")
+            
+            # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
+            # print("gt_mask saved")
 
-        # after all the steps, save to ckpt
-        if step % 1000 ==0:
-            save_path = saver.save(sess,SAVE_PATH, global_step=step)
-            print("model saved to {}".format(save_path))
+            # after all the steps, save to ckpt
+            if step % 1000 ==0:
+                save_path = saver.save(sess,SAVE_PATH, global_step=step)
+                print("model saved to {}".format(save_path))
+    except:
+        print("exception occured. exiting")
+
 
 
 
