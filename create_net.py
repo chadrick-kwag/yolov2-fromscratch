@@ -256,7 +256,7 @@ def create_training_net():
 
         #===== total loss
      
-        loss = loss_coords 
+        loss = 100* loss_coords + loss_conf
         loss = tf.Print(loss,[loss], "loss=")
 
 
