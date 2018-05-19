@@ -32,7 +32,7 @@ class InputLoader():
 
     # I'll skip even checking if the image really exists for now...
 
-    def __init__(self,batch_num=1,testcase=None):
+    def __init__(self,batch_num=1,testcase=None ):
 
         self.batch_num = batch_num
         self.apmanager = APManager()

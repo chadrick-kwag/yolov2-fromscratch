@@ -14,28 +14,39 @@ np_array_save_file = 'NP_SAVE.txt'
 STEP_NUM = 1000000
 # STEP_NUM = 1
 
-g1,notable_tensors, input_holders = create_training_net()
+istraining = False
+if istraining:
+    g1,notable_tensors, input_holders = create_training_net()
+else:
+    g1,notable_tensors, input_holders = create_training_net(istraining=False)
 
 # inputloader = InputLoader(testcase=0)
-inputloader = InputLoader(batch_num=5)
 
-image_input, gt, _ , essence = inputloader.get_image_and_gt()
+if istraining:
+
+    inputloader = InputLoader(batch_num=5)
+
+    image_input, gt, _ , essence = inputloader.get_image_and_gt()
+else:
+    inputloader = InputLoader(testcase=0)
+    image_input, gt , _ , essence = inputloader.get_image_and_gt()
+
 
 # essence format: ((center_xy_grid_index,best_B_index,r_cx,r_cy,resized_bw,resized_bh))
 
-print("essence={}".format(essence))
+# print("essence={}".format(essence))
 
 
 # check gt
-selected_essence = essence[0][0]
-gt_poi_grid_index = selected_essence[0]
-gt_poi_box_index = selected_essence[1]
+# selected_essence = essence[0][0]
+# gt_poi_grid_index = selected_essence[0]
+# gt_poi_box_index = selected_essence[1]
 
-print('gt_poi_grid_index',gt_poi_grid_index)
-print('gt_poi_box_index',gt_poi_box_index)
+# print('gt_poi_grid_index',gt_poi_grid_index)
+# print('gt_poi_box_index',gt_poi_box_index)
 
-gt_poi_conf = gt[0][gt_poi_grid_index][gt_poi_box_index][4]
-print('gt_poi_conf',gt_poi_conf)
+# gt_poi_conf = gt[0][gt_poi_grid_index][gt_poi_box_index][4]
+# print('gt_poi_conf',gt_poi_conf)
 
 
 
@@ -57,8 +68,11 @@ config = tf.ConfigProto(gpu_options=gpu_options)
 
 
 with tf.Session(graph=g1,config=config) as sess:
-    writer= tf.summary.FileWriter(logdir="./summary",graph=sess.graph)
-    writer.flush()
+
+
+    if istraining:
+        writer= tf.summary.FileWriter(logdir="./summary",graph=sess.graph)
+        writer.flush()
 
 
 
@@ -94,68 +108,78 @@ with tf.Session(graph=g1,config=config) as sess:
         print("!!!!! restoring...!!! ")
 
 
-    fetches=[ notable_tensors['conf_pred'], 
-        notable_tensors['loss_coords'],
-        notable_tensors['optimizing_op'],
-        notable_tensors['summary_op'],
-        notable_tensors['precision'],
-        notable_tensors['recall'],
-        notable_tensors['gt_box_count'],
-        notable_tensors['correct_hit_count'],
-        notable_tensors['incorrect_hit_count'],
-        notable_tensors['total_loss'],
-        notable_tensors['iou'],
-        notable_tensors['valid_iou_boolmask'],
-        notable_tensors['gt_bbx_grid_index'],
-        notable_tensors['gt_bbx_box_index'],
-        notable_tensors['gt_bbx_coords'],
-        notable_tensors['debug_gtbbx_iou'],
-        notable_tensors['debug_pred_normalized_cxy'],
-        notable_tensors['debug_pred_after_ap_normalized_wh'],
-        notable_tensors['gt_mask_true_count'],
-        notable_tensors['debug_gt_poi_conf'],
-        notable_tensors['early_gt_poi_array'],
-        notable_tensors['check1_poi_conf'],
-        notable_tensors['check2_poi_conf'],
-        notable_tensors['check_poi_pred_w'],
-        notable_tensors['check_poi_pred_h'],
-        notable_tensors['check_poi_gt_w'],
-        notable_tensors['check_poi_gt_h'],
-        notable_tensors['total_loss'],
-        notable_tensors['debug_pred_raw_poi_w'],
-        notable_tensors['debug_pred_raw_poi_h'],
-        notable_tensors['debug_pred_after_exp_poi_w'],
-        notable_tensors['debug_pred_after_exp_poi_h'],
-        notable_tensors['loss_cxy_poi'],
-        notable_tensors['pred_conf_poi'],
-        notable_tensors['gt_conf_poi'],
-        notable_tensors['gt_mask'],
-        notable_tensors['poi_iou'],
-        notable_tensors['poi_iou_rawform']
+    if istraining:
+        fetches=[ notable_tensors['conf_pred'], 
+            notable_tensors['loss_coords'],
+            notable_tensors['optimizing_op'],
+            notable_tensors['summary_op'],
+            notable_tensors['precision'],
+            notable_tensors['recall'],
+            notable_tensors['gt_box_count'],
+            notable_tensors['correct_hit_count'],
+            notable_tensors['incorrect_hit_count'],
+            notable_tensors['total_loss'],
+            notable_tensors['iou'],
+            notable_tensors['valid_iou_boolmask'],
+            notable_tensors['gt_bbx_grid_index'],
+            notable_tensors['gt_bbx_box_index'],
+            notable_tensors['gt_bbx_coords'],
+            notable_tensors['debug_gtbbx_iou'],
+            notable_tensors['debug_pred_normalized_cxy'],
+            notable_tensors['debug_pred_after_ap_normalized_wh'],
+            notable_tensors['gt_mask_true_count'],
+            notable_tensors['debug_gt_poi_conf'],
+            notable_tensors['early_gt_poi_array'],
+            notable_tensors['check1_poi_conf'],
+            notable_tensors['check2_poi_conf'],
+            notable_tensors['check_poi_pred_w'],
+            notable_tensors['check_poi_pred_h'],
+            notable_tensors['check_poi_gt_w'],
+            notable_tensors['check_poi_gt_h'],
+            notable_tensors['total_loss'],
+            notable_tensors['debug_pred_raw_poi_w'],
+            notable_tensors['debug_pred_raw_poi_h'],
+            notable_tensors['debug_pred_after_exp_poi_w'],
+            notable_tensors['debug_pred_after_exp_poi_h'],
+            notable_tensors['loss_cxy_poi'],
+            notable_tensors['pred_conf_poi'],
+            notable_tensors['gt_conf_poi'],
+            notable_tensors['gt_mask'],
+            notable_tensors['poi_iou'],
+            notable_tensors['poi_iou_rawform']
         
-
-
-        ]
+            ]
+        else:
+            fetches=[
+                
+            ]
 
 
     try:
 
         for step in range(steps):
-            pred_conf, loss_coords, _ , summary_result, \
-                precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
-                loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
-                , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
-                ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
-                check1_poi_conf, check2_poi_conf, \
-                check_poi_pred_w, check_poi_pred_h ,\
-                check_poi_gt_w, check_poi_gt_h, total_loss, \
-                debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
-                debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
-                , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
-                , poi_iou_rawform \
-                = sess.run(fetches,feed_dict=feed_dict)
 
-            writer.add_summary(summary_result,global_step=step)
+            if istraining:
+                pred_conf, loss_coords, _ , summary_result, \
+                    precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
+                    loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
+                    , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
+                    ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
+                    check1_poi_conf, check2_poi_conf, \
+                    check_poi_pred_w, check_poi_pred_h ,\
+                    check_poi_gt_w, check_poi_gt_h, total_loss, \
+                    debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
+                    debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
+                    , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
+                    , poi_iou_rawform \
+                    = sess.run(fetches,feed_dict=feed_dict)
+
+            else:
+                
+
+
+            if istraining:
+                writer.add_summary(summary_result,global_step=step)
             # print('coord_preds', coord_pred)
 
 
@@ -164,39 +188,14 @@ with tf.Session(graph=g1,config=config) as sess:
                 step,loss,precision,recall, gt_box_count, 
                 correct_hit_count, incorrect_hit_count))
 
-            # print("total loss:", total_loss)
-
-            # print('gt_bbx_grid_index',gt_bbx_grid_index)
-            # print('gt_bbx_box_index',gt_bbx_box_index)
-            # print('gt_bbx_coords',gt_bbx_coords)
-            # print('debug_gtbbx_iou',debug_gtbbx_iou)
-            # print('debug_pred_normalized_cxy', debug_pred_normalized_cxy)
-            # print('debug_pred_after_ap_normalized_wh', debug_pred_after_ap_normalized_wh)
-            # print('gt_mask_true_count',gt_mask_true_count)
-            # print('debug_gt_poi_conf',debug_gt_poi_conf)
-            # print('early_gt_poi_array',early_gt_poi_array)
-            # print('check1_poi_conf',check1_poi_conf)
-            # print('check2_poi_conf',check2_poi_conf)
-
-            # print('check_poi_pred_w', check_poi_pred_w)
-            # print('check_poi_pred_h', check_poi_pred_h)
-            # print('check_poi_gt_w',check_poi_gt_w)
-            # print('check_poi_gt_h', check_poi_gt_h)
-
-            # print('debug_pred_raw_poi_w', debug_pred_raw_poi_w)
-            # print('debug_pred_raw_poi_h', debug_pred_raw_poi_h)
-
-            # print('debug_pred_after_exp_poi_w',debug_pred_after_exp_poi_w)
-            # print('debug_pred_after_exp_poi_h', debug_pred_after_exp_poi_h)
-
-            # print("gt_mask shape=",gt_mask.shape)
+            
 
             
             # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
             # print("gt_mask saved")
 
             # after all the steps, save to ckpt
-            if step % 1000 ==0:
+            if istraining and step % 1000 ==0:
                 save_path = saver.save(sess,SAVE_PATH, global_step=step)
                 print("model saved to {}".format(save_path))
     except:
