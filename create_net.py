@@ -5,7 +5,7 @@ import tensorflow as tf
 
 # 
 
-def create_training_net():
+def create_training_net(istraining=True):
 
     
 
@@ -14,8 +14,10 @@ def create_training_net():
     with graph.as_default():
 
         input_layer = tf.placeholder(tf.float32,shape=(None,416,416,3),name="input_batch")
-        # ground_truth = tf.placeholder(tf.float32, shape=(None,13,13,30),name="gt_batch")
-        ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
+
+        if istraining:
+            ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
+        
 
         essence = tf.placeholder(tf.float32,shape=(6),name="essence")
 
@@ -106,9 +108,6 @@ def create_training_net():
         net_out_reshaped = tf.reshape(net_out,[-1,13,13,5,6])
 
         raw_coords = tf.reshape(net_out_reshaped[:,:,:,:,:4],[-1,13*13,5,4])
-
-        
-
 
         # apply logistic function to coordinate predictions
 

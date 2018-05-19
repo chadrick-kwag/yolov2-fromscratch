@@ -2,3 +2,5 @@
 __pycache__
 summary/*
 ckpt/*
+ckpt_storage/*
+testdataset
