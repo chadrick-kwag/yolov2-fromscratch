@@ -7,6 +7,8 @@ import tensorflow as tf
 
 def create_training_net():
 
+    
+
     graph = tf.Graph()
 
     with graph.as_default():
@@ -385,16 +387,17 @@ def create_training_net():
         # tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
         tf.summary.scalar(name="loss",tensor=loss)
         
-        tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
-        tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
-        tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
-        tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
-        tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
+        # tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
+        # tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
+        # tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
+        # tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
+        # tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
 
         tf.summary.scalar(name="precision", tensor = precision)
         tf.summary.scalar(name="recall", tensor = recall)
         tf.summary.scalar(name="poi_iou_average", tensor=poi_iou_average)
         tf.summary.scalar(name="incorrect_hit_count", tensor=incorrect_hit_count)
+        tf.summary.scalar(name="correct_hit_count", tensor = correct_hit_count)
         # tf.summary.scalar(name="correct_hit_iou_average", tensor = correct_hit_iou_average)
 
         summary_op = tf.summary.merge_all()
