@@ -16,7 +16,8 @@ STEP_NUM = 1000000
 
 g1,notable_tensors, input_holders = create_training_net()
 
-inputloader = InputLoader(testcase=0)
+# inputloader = InputLoader(testcase=0)
+inputloader = InputLoader(batch_num=5)
 
 image_input, gt, _ , essence = inputloader.get_image_and_gt()
 
