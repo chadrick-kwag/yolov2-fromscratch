@@ -15,9 +15,8 @@ def create_training_net(istraining=True):
 
         input_layer = tf.placeholder(tf.float32,shape=(None,416,416,3),name="input_batch")
 
-        if istraining:
-            ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
         
+        ground_truth = tf.placeholder(tf.float32, shape=(None,13*13,5,6),name="gt_batch")
 
         essence = tf.placeholder(tf.float32,shape=(6),name="essence")
 
@@ -143,6 +142,7 @@ def create_training_net(istraining=True):
         # conf = tf.nn.sigmoid(raw_conf,name="conf_pred_op")
         conf = raw_conf
         conf = tf.identity(conf,name="conf_pred")
+        pred_conf = tf.nn.sigmoid(conf)
 
 
 
@@ -438,7 +438,10 @@ def create_training_net(istraining=True):
             'gt_conf_poi': gt_conf_poi,
             'gt_mask': gt_mask,
             'poi_iou': poi_iou,
-            'poi_iou_rawform': poi_iou_rawform
+            'poi_iou_rawform': poi_iou_rawform,
+            'pred_out_cxy': pred_normalized_cxy,
+            'pred_out_rwh' : pred_after_ap_normalized_wh,
+            'pred_out_conf' : pred_conf
             
         }
 

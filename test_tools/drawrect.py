@@ -14,8 +14,12 @@ ax1 = fig1.add_subplot(111, aspect='equal')
 # input: cx, cy, rw, rh
 # from this we need the leftbottom coord, and w,h
 
-gt_data=(0.94765,0.9583333,6.5203,8.66666)
-pred_data=(0.49883342,0.49976134,0.5175644,0.8269221)
+# gt_data=(0.94765,0.9583333,6.5203,8.66666)  # testcase=0
+# pred_data=(0.1652532,0.6962155,1.7257355,3.5097976)
+
+
+gt_data=(0.67734374,0.407291666,8.2265625,11.1312500) # testcase=1
+pred_data = (0.201215, 0.303924, 9.019461, 23.125862)
 
 left_bottom_corner, rw,rh= convert(gt_data)
 c2,rw2,rh2 = convert(pred_data)
@@ -72,7 +76,7 @@ total_area = gt_area + pred_area - intersection_area
 
 iou = intersection_area / total_area
 
-print('iou', iou)
+print('iou={:5f}'.format(iou))
 
 
 #==================

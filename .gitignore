@@ -4,3 +4,4 @@ summary/*
 ckpt/*
 ckpt_storage/*
 testdataset
+pred_saves
