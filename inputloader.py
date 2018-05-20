@@ -44,6 +44,13 @@ class InputLoader():
             self.annotation_directory = TEST_ANNOTATION_DIR
             self.images_directory = TEST_IMAGES_DIR
 
+        if testcase ==1 :
+            TEST_ANNOTATION_DIR='/home/chadrick/prj/tf_practice/yolov2-fromscratch/testdataset/02/annotations'
+            TEST_IMAGES_DIR ='/home/chadrick/prj/tf_practice/yolov2-fromscratch/testdataset/02/images'
+            self.annotation_directory = TEST_ANNOTATION_DIR
+            self.images_directory = TEST_IMAGES_DIR
+
+
         # return False if something is wrong
         # return True if it is okay
         # gather from the search_directory

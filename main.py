@@ -15,6 +15,8 @@ STEP_NUM = 1000000
 # STEP_NUM = 1
 
 istraining = False
+
+
 if istraining:
     g1,notable_tensors, input_holders = create_training_net()
 else:
@@ -28,7 +30,7 @@ if istraining:
 
     image_input, gt, _ , essence = inputloader.get_image_and_gt()
 else:
-    inputloader = InputLoader(testcase=0)
+    inputloader = InputLoader(testcase=1)
     image_input, gt , _ , essence = inputloader.get_image_and_gt()
 
 
@@ -102,7 +104,9 @@ with tf.Session(graph=g1,config=config) as sess:
         # if ckpt exist, then load from it
     
         # saver.restore(sess, SAVE_PATH)
-    last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
+    # last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
+    # print("last_checkpoint=", last_checkpoint)
+    last_checkpoint = "./ckpt/model-001.ckpt-3000"
     if last_checkpoint is not None:
         saver.restore(sess,last_checkpoint)
         print("!!!!! restoring...!!! ")
@@ -149,17 +153,21 @@ with tf.Session(graph=g1,config=config) as sess:
             notable_tensors['poi_iou_rawform']
         
             ]
-        else:
-            fetches=[
-                
-            ]
+    else:
+        fetches=[
+            notable_tensors['pred_out_cxy'],
+            notable_tensors['pred_out_rwh'],
+            notable_tensors['pred_out_conf']
+        ]
 
 
     try:
 
-        for step in range(steps):
+        if istraining:
 
-            if istraining:
+            for step in range(steps):
+
+                
                 pred_conf, loss_coords, _ , summary_result, \
                     precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
                     loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
@@ -174,30 +182,40 @@ with tf.Session(graph=g1,config=config) as sess:
                     , poi_iou_rawform \
                     = sess.run(fetches,feed_dict=feed_dict)
 
-            else:
+                
+                writer.add_summary(summary_result,global_step=step)
                 
 
 
-            if istraining:
-                writer.add_summary(summary_result,global_step=step)
-            # print('coord_preds', coord_pred)
+                
+                pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
+                    step,loss,precision,recall, gt_box_count, 
+                    correct_hit_count, incorrect_hit_count))
+                
 
+                # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
+                # print("gt_mask saved")
 
+                # after all the steps, save to ckpt
+                if step % 1000 ==0:
+                    save_path = saver.save(sess,SAVE_PATH, global_step=step)
+                    print("model saved to {}".format(save_path))
 
-            pprint.pprint('step={} loss={}, precision={}, recall={}, gt_box_count={}, correct_hit_count={}, incorrect_hit_count={}'.format(
-                step,loss,precision,recall, gt_box_count, 
-                correct_hit_count, incorrect_hit_count))
+            print("train looping finished")
+        
+        else:
+            # inferencing
+            pred_out_cxy, pred_out_rwh, pred_out_conf = sess.run(fetches, feed_dict=feed_dict)
+
+            print("pred_out_cxy shape=", pred_out_cxy.shape)
+            print("pred_out_rwh shape=", pred_out_rwh.shape)
+            print("pred_out_conf shape=", pred_out_conf.shape)
+
+            np.savez("pred_save",pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
+            print("prediction arrays saved as file")
 
             
 
-            
-            # np.savez(np_array_save_file,gt_mask = gt_mask, iou = iou, poi_iou = poi_iou, poi_iou_rawform = poi_iou_rawform)
-            # print("gt_mask saved")
-
-            # after all the steps, save to ckpt
-            if istraining and step % 1000 ==0:
-                save_path = saver.save(sess,SAVE_PATH, global_step=step)
-                print("model saved to {}".format(save_path))
     except:
         print("exception occured. exiting")
 
