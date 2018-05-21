@@ -230,8 +230,8 @@ def create_training_net(istraining=True):
         # gt_conf_poi = tf.Print(gt_conf_poi, [gt_conf_poi], "gt_conf_poi:")
 
         
-
-        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
+        conf_masked = conf * gt_mask
+        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf_masked)
         loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
         loss_conf = tf.reduce_sum(loss_conf, axis=1)
         loss_conf = tf.reduce_mean(loss_conf)
@@ -360,6 +360,23 @@ def create_training_net(istraining=True):
         precision = correct_hit_count / (correct_hit_count + incorrect_hit_count)
         recall = correct_hit_count / gt_box_count
 
+
+        #==== summarize conf
+
+        over_threshold_pred_conf_boolmask = tf.cast(tf.greater(pred_conf, 0.5), tf.float32)
+        over_threshold_pred_conf = pred_conf * over_threshold_pred_conf_boolmask
+
+        over_threshold_pred_conf_count = tf.count_nonzero(over_threshold_pred_conf)
+        over_threshold_pred_conf_count = tf.Print(over_threshold_pred_conf_count, [over_threshold_pred_conf_count], "over_threshold_pred_conf_count=")
+
+        poi_pred_conf = pred_conf * gt_mask
+        # assuming that gt_mask will only leave one conf value alive...
+        poi_pred_conf_average = tf.reshape(poi_pred_conf, shape=[-1,13*13*5])
+        poi_pred_conf_average = tf.reduce_sum(poi_pred_conf_average, axis=1)
+        poi_pred_conf_average = tf.reduce_mean(poi_pred_conf_average)
+        poi_pred_conf_average = tf.Print(poi_pred_conf_average,[poi_pred_conf_average], "poi_pred_conf_average=")
+
+
         #===== debug_check
 
         debug_gtbbx_iou = iou[:,gt_bbx_grid_index,gt_bbx_box_index,0]
@@ -397,6 +414,7 @@ def create_training_net(istraining=True):
         tf.summary.scalar(name="poi_iou_average", tensor=poi_iou_average)
         tf.summary.scalar(name="incorrect_hit_count", tensor=incorrect_hit_count)
         tf.summary.scalar(name="correct_hit_count", tensor = correct_hit_count)
+        tf.summary.scalar(name="poi_pred_conf_average", tensor=poi_pred_conf_average)
         # tf.summary.scalar(name="correct_hit_iou_average", tensor = correct_hit_iou_average)
 
         summary_op = tf.summary.merge_all()
@@ -441,7 +459,9 @@ def create_training_net(istraining=True):
             'poi_iou_rawform': poi_iou_rawform,
             'pred_out_cxy': pred_normalized_cxy,
             'pred_out_rwh' : pred_after_ap_normalized_wh,
-            'pred_out_conf' : pred_conf
+            'pred_out_conf' : pred_conf,
+            'over_threshold_pred_conf_count': over_threshold_pred_conf_count,
+            'poi_pred_conf_average': poi_pred_conf_average
             
         }
 
