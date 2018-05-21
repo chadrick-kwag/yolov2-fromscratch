@@ -89,8 +89,14 @@ class InputLoader():
         # check if annotation_file_list is empty
         # if so then we have send epoch_end signal
 
-        if not self.annotation_file_list:
+        if not picked_files:
             epoch_end_signal = True
+            self.reload_annotation_file_list()
+            picked_files = self.pick_annotations(self.batch_num)
+
+            # even after reloading and there still is a problem with fetching the picked_files, then raise exception
+            if not picked_files:
+                raise Exception("failed to reload annotation list and re-fetch batch_num number of annotations")
 
         image_batch = []
         gt_batch = []
@@ -144,7 +150,7 @@ class InputLoader():
         random.shuffle(self.annotation_file_list)
 
         #debug
-        print("annotation_file_list length={}".format(len(self.annotation_file_list)))
+        # print("annotation_file_list length={}".format(len(self.annotation_file_list)))
 
 
     def resized_image(self,imgpath):
@@ -169,7 +175,7 @@ class InputLoader():
         and prepare GT is necessary
         """
 
-        print("processing {}".format(filepath))
+        # print("processing {}".format(filepath))
 
         fullpath = os.path.join(self.annotation_directory,filepath)
 
@@ -187,7 +193,7 @@ class InputLoader():
             return resized_image,None
 
         gt_return, essence = self.process_gt_from_annotation_info(readjsonobj)
-        print('gt_return',gt_return)
+        # print('gt_return',gt_return)
 
         return resized_image, gt_return, essence
 
@@ -202,8 +208,8 @@ class InputLoader():
         # the json file should give out the x1,x2,y1,y2 values. 
         iw = jsonobj['w'] # image width
         ih = jsonobj['h'] # image height
-        print('iw',iw)
-        print('ih',ih)
+        # print('iw',iw)
+        # print('ih',ih)
 
         # iw_resize_factor = 416/iw
         # ih_resize_factor = 416/ih
@@ -258,15 +264,15 @@ class InputLoader():
             cx = (x1+x2)/2
             cy = (y1+y2)/2
 
-            print('cx',cx)
-            print('cy',cy)
+            # print('cx',cx)
+            # print('cy',cy)
 
 
             grid_x_index = int(cx*grid_slice_num/iw)
             grid_y_index = int(cy*grid_slice_num/ih)
 
-            print('grid_x_index',grid_x_index)
-            print('grid_y_index',grid_y_index)
+            # print('grid_x_index',grid_x_index)
+            # print('grid_y_index',grid_y_index)
 
 
             center_xy_grid_index = int(grid_y_index * grid_slice_num + grid_x_index)
@@ -278,20 +284,20 @@ class InputLoader():
             cxy_grid_topleft_x = single_grid_w * grid_x_index
             cxy_grid_topleft_y = single_grid_h * grid_y_index
 
-            print('cxy_grid_topleft_x',cxy_grid_topleft_x)
-            print('cxy_grid_topleft_y',cxy_grid_topleft_y)
+            # print('cxy_grid_topleft_x',cxy_grid_topleft_x)
+            # print('cxy_grid_topleft_y',cxy_grid_topleft_y)
 
             d_cx = cx - single_grid_w * grid_x_index
             d_cy = cy - single_grid_h * grid_y_index
 
-            print('d_cx',d_cx)
-            print('d_cy',d_cy)
+            # print('d_cx',d_cx)
+            # print('d_cy',d_cy)
 
             r_cx = d_cx / single_grid_w
             r_cy = d_cy / single_grid_h
 
-            print('r_cx',r_cx)
-            print('r_cy',r_cy)
+            # print('r_cx',r_cx)
+            # print('r_cy',r_cy)
             
 
             # prepare the GT array to return
@@ -300,16 +306,16 @@ class InputLoader():
             number_of_predictions_for_each_box = 6
             returnarray = np.zeros(shape=(number_of_grids, number_of_boxes,number_of_predictions_for_each_box))
 
-            print('center_xy_grid_index',center_xy_grid_index)
-            print('best_B_index',best_B_index)
+            # print('center_xy_grid_index',center_xy_grid_index)
+            # print('best_B_index',best_B_index)
             # should be a list of shape (number_of_predictions_for_each_box,)
             # the second last 1.0 = conf
             # the very last 1.0 = P_class. there is only one class so only one 1.0 for now.
             returnarray[center_xy_grid_index,best_B_index,:] = [r_cx,r_cy,resized_bw,resized_bh,1.0,1.0]
 
-            print("changed part",returnarray[center_xy_grid_index,best_B_index,:])
+            # print("changed part",returnarray[center_xy_grid_index,best_B_index,:])
 
-            print("changed row",returnarray[center_xy_grid_index,:,:])
+            # print("changed row",returnarray[center_xy_grid_index,:,:])
             # print('after populating..',returnarray)
 
             # also return the essence
