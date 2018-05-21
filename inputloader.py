@@ -108,7 +108,7 @@ class InputLoader():
             image_batch.append(resized_image)
             essence_batch.append(essence)
         
-        return image_batch, gt_batch, epoch_end_signal, essence_batch
+        return image_batch, gt_batch, epoch_end_signal, essence_batch, picked_files
 
 
         
