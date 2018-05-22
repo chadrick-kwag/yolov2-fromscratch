@@ -58,7 +58,17 @@ pred_out_cxy = pred_out_cxy[0]
 pred_out_rwh = pred_out_rwh[0]
 pred_out_conf = pred_out_conf[0]
 
-print(pred_out_cxy.shape)
+# get histogram information of conf
+
+pred_out_conf_spread = np.reshape(pred_out_conf, [-1])
+print(pred_out_conf_spread.shape)
+
+
+plt.hist(pred_out_conf_spread,bins='auto', range=(0.0, 1.0))
+# plt.show()
+plt.savefig('conf_histogram.png')
+
+
 
 index_arrs = np.where(pred_out_conf> threshold )
 
@@ -70,7 +80,7 @@ box_arr = box_arr.reshape(1, box_arr.shape[0])
 
 assert grid_arr.shape[1] == box_arr.shape[1]
 
-debug = False
+debug = True
 
 for i in range(grid_arr.shape[1]):
     grid_index = grid_arr[0][i]
