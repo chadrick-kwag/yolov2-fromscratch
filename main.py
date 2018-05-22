@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from inputloader import InputLoader
 import os, pprint, sys
+import traceback
 
 # load the input and GT
 
@@ -14,7 +15,7 @@ np_array_save_file = 'NP_SAVE.txt'
 STEP_NUM = 1000000
 # STEP_NUM = 1
 
-istraining = False
+istraining = True
 
 
 if istraining:
@@ -27,13 +28,13 @@ else:
 if istraining:
 
     inputloader = InputLoader(batch_num=4)
-    image_input, gt, _ , essence = inputloader.get_image_and_gt()
+    image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
 
     testcase_inputloader = InputLoader(testcase=0)
     
 else:
     inputloader = InputLoader(testcase=1)
-    image_input, gt , _ , essence = inputloader.get_image_and_gt()
+    image_input, gt , _ , essence, _ = inputloader.get_image_and_gt()
 
 
 # essence format: ((center_xy_grid_index,best_B_index,r_cx,r_cy,resized_bw,resized_bh))
@@ -92,7 +93,7 @@ with tf.Session(graph=g1,config=config) as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=None)
 
         # if ckpt exist, then load from it
     
@@ -114,7 +115,7 @@ with tf.Session(graph=g1,config=config) as sess:
             for step in range(steps):
 
 
-                image_input, gt, _ , essence = inputloader.get_image_and_gt()
+                image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
 
                 feed_dict = {
                     input_holders['input_layer'] : image_input,
@@ -197,13 +198,14 @@ with tf.Session(graph=g1,config=config) as sess:
                 # after all the steps, save to ckpt
                 if step % 500 ==0:
                     print("FLOWING TESTECASE AT CHECKPOINT STEP #{}".format(step))
-                    save_path = saver.save(sess,SAVE_PATH, global_step=step)
-                    print("model saved to {}".format(save_path))
+
+
+                    
 
 
                     ## flow the testcase
 
-                    testcase_image_input, test_gt,_,essence = testcase_inputloader.get_image_and_gt()
+                    testcase_image_input, test_gt,_,essence , _ = testcase_inputloader.get_image_and_gt()
 
 
                     feed_dict = {
@@ -227,16 +229,22 @@ with tf.Session(graph=g1,config=config) as sess:
                     print("pred_out_conf shape=", pred_out_conf.shape)
 
                     predsave_filename = "pred_save_{:06d}".format(step)
+                    predsave_filepath= os.path.join("pred_saves", predsave_filename)
 
-                    np.savez(predsave_filename,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
+                    np.savez(predsave_filepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
                     print("TEST FLOW DONE")
+
+                if step % 1000 == 0:
+                    # interval to save ckpt
+                    save_path = saver.save(sess,SAVE_PATH, global_step=step)
+                    print("model saved to {}".format(save_path))
 
             print("train looping finished")
         
         else:
-            # inferencing
+            # inferencing. not training.
 
-            image_input, gt, _ , essence = inputloader.get_image_and_gt()
+            image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
 
             feed_dict = {
                 input_holders['input_layer'] : image_input,
@@ -258,7 +266,10 @@ with tf.Session(graph=g1,config=config) as sess:
             print("pred_out_rwh shape=", pred_out_rwh.shape)
             print("pred_out_conf shape=", pred_out_conf.shape)
 
-            np.savez("pred_save",pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
+            outfilename = "pred_save"
+            outfilepath = os.path.join("pred_saves", outfilename)
+
+            np.savez(outfilepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
             print("prediction arrays saved as file")
 
             
@@ -267,6 +278,7 @@ with tf.Session(graph=g1,config=config) as sess:
 
         print("exception occured.")
         print(e)
+        traceback.print_exc()
 
 
 
