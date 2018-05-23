@@ -20,9 +20,9 @@ il = InputLoader(testcase=1)
 input_image_dir = il.images_directory
 annotation_dir = il.annotation_directory
 
-threshold = 0.5
-save_conf_histogram = True
-save_image_output = False
+threshold = 0.9
+save_conf_histogram = False
+save_image_output = True
 show_bbxed_image = False
 
 if not save_conf_histogram and not save_image_output:
@@ -36,6 +36,7 @@ if save_image_output:
     image_batch, gt_batch, epoch_end_signal, essence_batch, picked_files = il.get_image_and_gt()
 
     reduced_image = image_batch[0]
+    gt_arr = gt_batch[0]
 
     reduced_image = cv2.cvtColor(reduced_image, cv2.COLOR_RGB2BGR)
 
@@ -46,7 +47,7 @@ if save_image_output:
 
     with open(annotation_file,'r') as openf:
         jsobj = json.load(openf)
-        print(jsobj)
+        # print(jsobj)
 
         orig_image_w = jsobj['w']
         orig_image_h = jsobj['h']
@@ -63,9 +64,16 @@ npzfile_list.sort()
 
 debug2 = False
 
+pred_poi_cx_list=[]
+pred_poi_cy_list=[]
+pred_poi_rw_list=[]
+pred_poi_rh_list=[]
+
 for f in npzfile_list:
+
     m = re.match(r"pred_save_(\d+)\.npz", f)
     step_num = m.group(1)
+    print("step num={}".format(step_num))
     
 
 
@@ -88,18 +96,18 @@ for f in npzfile_list:
     pred_out_conf_spread = np.reshape(pred_out_conf, [-1])
     # print(pred_out_conf_spread.shape)
 
-    plt.cla()
-    fig, ax = plt.subplots()
-    ax.hist(pred_out_conf_spread,bins=10, range=(0.0, 1.0))
-    ax.set_ylim([0,700])
-    # plt.show()
-    outimagefilename = "conf_histogram_{}.png".format(step_num)
-    fig.savefig(outimagefilename)
-    print("saved historgram file: {}".format(outimagefilename))
+    if save_conf_histogram:
+        plt.cla()
+        fig, ax = plt.subplots()
+        ax.hist(pred_out_conf_spread,bins=10, range=(0.0, 1.0))
+        ax.set_ylim([0,700])
+        # plt.show()
+        outimagefilename = "conf_histogram_{}.png".format(step_num)
+        fig.savefig(outimagefilename)
+        print("saved historgram file: {}".format(outimagefilename))
 
 
-    if debug2:
-        break
+    
 
     if save_image_output:
 
@@ -113,14 +121,14 @@ for f in npzfile_list:
 
         assert grid_arr.shape[1] == box_arr.shape[1]
 
-        debug = True
+        debug = False
 
         for i in range(grid_arr.shape[1]):
             grid_index = grid_arr[0][i]
             box_index = box_arr[0][i]
             
-            print('grid_index = ', grid_index)
-            print('box_index = ', box_index)
+            # print('grid_index = ', grid_index)
+            # print('box_index = ', box_index)
 
 
             cx = pred_out_cxy[grid_index,box_index,0]
@@ -145,7 +153,7 @@ for f in npzfile_list:
 
             p1,p2 = get_rect_points(abs_cx, abs_cy, abs_w, abs_h)
 
-            print(p1,p2)
+            # print(p1,p2)
             
 
             cv2.rectangle(reduced_image,p1,p2, (0,0,255), thickness=2)
@@ -154,11 +162,110 @@ for f in npzfile_list:
             if debug:
                 break
 
+        # draw gt box
+        gt_conf = gt_arr[:,:,4]
+        # print("gt_conf shape",gt_conf.shape)
+        tt = np.where(gt_conf==1.0)
+        # print(tt)
+        gt_conf_grid_index = tt[0][0]
+        gt_conf_box_index = tt[1][0]
+
+        gt_cx = gt_arr[gt_conf_grid_index, gt_conf_box_index, 0]
+        gt_cy = gt_arr[gt_conf_grid_index, gt_conf_box_index, 1]
+        gt_rw = gt_arr[gt_conf_grid_index, gt_conf_box_index, 2]
+        gt_rh = gt_arr[gt_conf_grid_index, gt_conf_box_index, 3]
+
+
+        grid_cell_size = 416/13
+
+        grid_x_index = gt_conf_grid_index % 13
+        grid_y_index = int(gt_conf_grid_index / 13)
+
+        o_x = grid_x_index * grid_cell_size
+        o_y = grid_y_index * grid_cell_size
+
+        abs_cx = o_x+ gt_cx * grid_cell_size
+        abs_cy = o_y + gt_cy * grid_cell_size
+
+        abs_w = grid_cell_size * gt_rw
+        abs_h = grid_cell_size * gt_rh
+
+        p1,p2 = get_rect_points(abs_cx, abs_cy, abs_w, abs_h)
+
+        # print(p1,p2)
+        
+
+        cv2.rectangle(reduced_image,p1,p2, (0,255,0), thickness=2)
+
+
+
+        # print("gt_conf_grid_index={}, gt_conf_box_index={}".format(gt_conf_grid_index, gt_conf_box_index))
+
+        # print gt cxy,rwh value and pred value
+        print("gt cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(gt_cx,gt_cy, gt_rw, gt_rh))
+
+        pred_poi_cx = pred_out_cxy[gt_conf_grid_index, gt_conf_box_index,0]
+        pred_poi_cy = pred_out_cxy[gt_conf_grid_index, gt_conf_box_index,1]
+        pred_poi_rw = pred_out_rwh[gt_conf_grid_index, gt_conf_box_index,0]
+        pred_poi_rh = pred_out_rwh[gt_conf_grid_index, gt_conf_box_index,1]
+
+        pred_poi_cx_list.append(pred_poi_cx)
+        pred_poi_cy_list.append(pred_poi_cy)
+        pred_poi_rw_list.append(pred_poi_rw)
+        pred_poi_rh_list.append(pred_poi_rh)
+
+        print("pred cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(pred_poi_cx, pred_poi_cy, pred_poi_rw, pred_poi_rh))
+
+
 
         if show_bbxed_image:
             cv2.imshow('image', reduced_image)
             cv2.waitKey(0)
         output_filename = 'testcase_1_{}_threshold_{}.png'.format(step_num, threshold)
         cv2.imwrite(output_filename, reduced_image)
+
+    # end of if save_image_output
+
+    if debug2:
+        break
+# end of npz file loop 
+
+
+pred_poi_cx_list = np.array(pred_poi_cx_list)
+pred_poi_cy_list = np.array(pred_poi_cy_list)
+pred_poi_rw_list = np.array(pred_poi_rw_list)
+pred_poi_rh_list = np.array(pred_poi_rh_list)
+
+fig, axes = plt.subplots(2,2)
+ax1 = axes[0,0]
+ax1.plot(pred_poi_cx_list)
+ax1.set_ylim([0.0, 1.0])
+ax1.axhline(y=gt_cx, color='red')
+ax1.set_title("cx")
+
+ax2 = axes[0,1]
+ax2.plot(pred_poi_cy_list)
+ax2.set_ylim([0.0, 1.0])
+ax2.axhline(y=gt_cy, color='red')
+ax2.set_title("cy")
+
+ax3 = axes[1,0]
+ax3.plot(pred_poi_rw_list)
+ylimit = max ( max(pred_poi_rw_list)*1.1 , gt_rw*1.1)
+ax3.set_ylim([0.0, ylimit])
+ax3.axhline(y=gt_rw, color='red')
+ax3.set_title("rw")
+
+ax4 = axes[1,1]
+ax4.plot(pred_poi_rh_list)
+ylimit = max( max(pred_poi_rh_list)*1.1 , gt_rh*1.1)
+ax4.set_ylim([0.0, ylimit])
+ax4.axhline(y=gt_rh, color='red')
+ax4.set_title("rh")
+
+plt.subplots_adjust(wspace=0.5,hspace=0.5)
+plt.show()
+
+    
 
 print("end of code")
