@@ -180,8 +180,9 @@ def create_training_net(istraining=True):
         #============
 
         # need to get the mask of gt
-        gt_mask = tf.equal(gt_conf,1.0)
-        gt_mask = tf.to_float(gt_mask)
+        gt_mask_boolean = tf.equal(gt_conf,1.0)
+        gt_mask = tf.to_float(gt_mask_boolean)
+        gt_mask_invert_float = 1.0 - gt_mask
         gt_mask_true_count = tf.count_nonzero(gt_mask)
 
 
@@ -230,8 +231,24 @@ def create_training_net(istraining=True):
         # gt_conf_poi = tf.Print(gt_conf_poi, [gt_conf_poi], "gt_conf_poi:")
 
         
-        conf_masked = conf * gt_mask
-        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf_masked)
+
+        # conf_masked = conf * gt_mask
+
+        conf_threshold = 0.3
+        over_threshold_conf_mask  = conf > 0.3
+        over_threshold_conf_mask = over_threshold_conf_mask 
+        over_threshold_conf_mask_float = tf.to_float(over_threshold_conf_mask)
+        # remove the gt from over_threshold
+        over_threshold_conf_mask_float -= gt_mask
+
+        threshold_converted = 0.3* over_threshold_conf_mask_float
+
+        gt_masked_conf = conf * gt_mask
+
+        target_conf = threshold_converted + gt_masked_conf
+
+
+        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=target_conf)
         loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
         loss_conf = tf.reduce_sum(loss_conf, axis=1)
         loss_conf = tf.reduce_mean(loss_conf)
