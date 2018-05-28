@@ -21,9 +21,48 @@ input_image_dir = il.images_directory
 annotation_dir = il.annotation_directory
 
 threshold = 0.9
-save_conf_histogram = False
+save_conf_histogram = True
 save_image_output = True
 show_bbxed_image = False
+
+OUTPUT_DIR="analysis_image_output"
+
+OUTPUT_DIR_FULLPATH = os.path.abspath(OUTPUT_DIR)
+
+# create directory
+
+# dirlist =os.listdir()
+
+# dirlist = [ f for f in dirlist if os.path.isdir(f)]
+
+# match_str = "{}_(\d+)".format(OUTPUT_DIR)
+# prog = re.compile(match_str)
+
+# same_pattern_dirname_exist = False
+# temp_dirnum=0
+
+# for d in dirlist:
+#     # m = re.match(match_str, d)
+#     m = prog.match(d)
+#     if m is not None:
+#         same_pattern_dirname_exist = True
+#         dir_number = m.group(1)
+
+        
+#     # step_num = m.group(1)
+#     # print("step num={}".format(step_num))
+
+
+
+if os.path.exists(OUTPUT_DIR):
+    raise Exception("outdir already exists. abort.")
+
+os.mkdir(OUTPUT_DIR)
+
+
+
+# sys.exit(1)
+
 
 if not save_conf_histogram and not save_image_output:
     print("nothing to do")
@@ -56,7 +95,7 @@ if save_image_output:
 ## 
 
 # load the pred values
-npzfile_dir = "../pred_saves/att_09"
+npzfile_dir = "../pred_saves"
 
 npzfile_list = os.listdir(npzfile_dir)
 npzfile_list.sort()
@@ -71,7 +110,12 @@ pred_poi_rh_list=[]
 
 for f in npzfile_list:
 
+    
+
     m = re.match(r"pred_save_(\d+)\.npz", f)
+
+    if m is None:
+        continue
     step_num = m.group(1)
     print("step num={}".format(step_num))
     
@@ -97,14 +141,16 @@ for f in npzfile_list:
     # print(pred_out_conf_spread.shape)
 
     if save_conf_histogram:
-        plt.cla()
+        plt.close('all')
         fig, ax = plt.subplots()
         ax.hist(pred_out_conf_spread,bins=10, range=(0.0, 1.0))
         ax.set_ylim([0,700])
         # plt.show()
         outimagefilename = "conf_histogram_{}.png".format(step_num)
+        outimagepath = os.path.join(OUTPUT_DIR, outimagefilename)
         fig.savefig(outimagefilename)
-        print("saved historgram file: {}".format(outimagefilename))
+        os.rename(outimagefilename, outimagepath)
+        
 
 
     
@@ -202,7 +248,7 @@ for f in npzfile_list:
         # print("gt_conf_grid_index={}, gt_conf_box_index={}".format(gt_conf_grid_index, gt_conf_box_index))
 
         # print gt cxy,rwh value and pred value
-        print("gt cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(gt_cx,gt_cy, gt_rw, gt_rh))
+        # print("gt cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(gt_cx,gt_cy, gt_rw, gt_rh))
 
         pred_poi_cx = pred_out_cxy[gt_conf_grid_index, gt_conf_box_index,0]
         pred_poi_cy = pred_out_cxy[gt_conf_grid_index, gt_conf_box_index,1]
@@ -214,7 +260,7 @@ for f in npzfile_list:
         pred_poi_rw_list.append(pred_poi_rw)
         pred_poi_rh_list.append(pred_poi_rh)
 
-        print("pred cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(pred_poi_cx, pred_poi_cy, pred_poi_rw, pred_poi_rh))
+        # print("pred cx={:4f}, cy={:4f}, rw={:4f}, rh={:4f}".format(pred_poi_cx, pred_poi_cy, pred_poi_rw, pred_poi_rh))
 
 
 
@@ -222,19 +268,24 @@ for f in npzfile_list:
             cv2.imshow('image', reduced_image)
             cv2.waitKey(0)
         output_filename = 'testcase_1_{}_threshold_{}.png'.format(step_num, threshold)
+        output_filepath = os.path.join(OUTPUT_DIR, output_filename)
+        
         cv2.imwrite(output_filename, reduced_image)
+        os.rename(output_filename, output_filepath)
 
     # end of if save_image_output
 
     if debug2:
         break
 # end of npz file loop 
-
+ 
 
 pred_poi_cx_list = np.array(pred_poi_cx_list)
 pred_poi_cy_list = np.array(pred_poi_cy_list)
 pred_poi_rw_list = np.array(pred_poi_rw_list)
 pred_poi_rh_list = np.array(pred_poi_rh_list)
+
+plt.close('all')
 
 fig, axes = plt.subplots(2,2)
 ax1 = axes[0,0]
@@ -264,7 +315,16 @@ ax4.axhline(y=gt_rh, color='red')
 ax4.set_title("rh")
 
 plt.subplots_adjust(wspace=0.5,hspace=0.5)
+
+
+testcase_cxyrwh_trajectory_filename='testcase_1_cxyrwh_trajectory.png'
+fig.savefig(testcase_cxyrwh_trajectory_filename)
+
 plt.show()
+print("testcase 1 cxyrwh trajectory image file saved")
+
+
+
 
     
 
