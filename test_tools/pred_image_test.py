@@ -6,7 +6,7 @@ from inputloader import InputLoader
 import json
 import cv2
 import matplotlib.pyplot as plt
-import re
+import re, shutil
 
 
 def get_rect_points(cx,cy,w,h):
@@ -15,12 +15,12 @@ def get_rect_points(cx,cy,w,h):
     return p1,p2
 
 
-il = InputLoader(testcase=1)
+il = InputLoader(testcase=0)
 
 input_image_dir = il.images_directory
 annotation_dir = il.annotation_directory
 
-threshold = 0.9
+threshold = 0.2
 save_conf_histogram = True
 save_image_output = True
 show_bbxed_image = False
@@ -55,7 +55,8 @@ OUTPUT_DIR_FULLPATH = os.path.abspath(OUTPUT_DIR)
 
 
 if os.path.exists(OUTPUT_DIR):
-    raise Exception("outdir already exists. abort.")
+    shutil.rmtree(OUTPUT_DIR)
+    
 
 os.mkdir(OUTPUT_DIR)
 
@@ -74,10 +75,11 @@ if save_image_output:
 
     image_batch, gt_batch, epoch_end_signal, essence_batch, picked_files = il.get_image_and_gt()
 
-    reduced_image = image_batch[0]
+    reduced_image_orig = image_batch[0]
+    
     gt_arr = gt_batch[0]
 
-    reduced_image = cv2.cvtColor(reduced_image, cv2.COLOR_RGB2BGR)
+    reduced_image_orig = cv2.cvtColor(reduced_image_orig, cv2.COLOR_RGB2BGR)
 
     annotation_file = picked_files[0]
     annotation_file = os.path.join(annotation_dir, annotation_file)
@@ -95,7 +97,7 @@ if save_image_output:
 ## 
 
 # load the pred values
-npzfile_dir = "../pred_saves"
+npzfile_dir = "../pred_saves/att_11"
 
 npzfile_list = os.listdir(npzfile_dir)
 npzfile_list.sort()
@@ -108,15 +110,24 @@ pred_poi_cy_list=[]
 pred_poi_rw_list=[]
 pred_poi_rh_list=[]
 
+
+single_forward_test = False
+
 for f in npzfile_list:
 
     
-
-    m = re.match(r"pred_save_(\d+)\.npz", f)
+    if single_forward_test:
+        m = re.match(r"pred_save.npz",f)
+    else:
+        m = re.match(r"pred_save_(\d+)\.npz", f)
 
     if m is None:
         continue
-    step_num = m.group(1)
+
+    if single_forward_test:
+        step_num=1
+    else:        
+        step_num = m.group(1)
     print("step num={}".format(step_num))
     
 
@@ -159,6 +170,8 @@ for f in npzfile_list:
 
         index_arrs = np.where(pred_out_conf> threshold )
 
+        print("over threshold conf count=", len(index_arrs[0]))
+
         grid_arr = index_arrs[0]
         box_arr = index_arrs[1]
 
@@ -169,7 +182,12 @@ for f in npzfile_list:
 
         debug = False
 
+        # reset cv2 image
+        reduced_image = reduced_image_orig.copy()
+
         for i in range(grid_arr.shape[1]):
+
+            
             grid_index = grid_arr[0][i]
             box_index = box_arr[0][i]
             
@@ -285,30 +303,50 @@ pred_poi_cy_list = np.array(pred_poi_cy_list)
 pred_poi_rw_list = np.array(pred_poi_rw_list)
 pred_poi_rh_list = np.array(pred_poi_rh_list)
 
+if len(pred_poi_cx_list) == 0:
+    raise Exception("nothing to show in cxyrwh trajectory")
+elif len(pred_poi_cx_list) ==1:
+    needtoscatter = True
+    dummy_x=[0]
+else:
+    needtoscatter = False
+
 plt.close('all')
 
 fig, axes = plt.subplots(2,2)
 ax1 = axes[0,0]
-ax1.plot(pred_poi_cx_list)
+if needtoscatter:
+    ax1.scatter(x=dummy_x,y=pred_poi_cx_list)
+else:
+    ax1.plot(pred_poi_cx_list)
 ax1.set_ylim([0.0, 1.0])
 ax1.axhline(y=gt_cx, color='red')
 ax1.set_title("cx")
 
 ax2 = axes[0,1]
-ax2.plot(pred_poi_cy_list)
+if needtoscatter:
+    ax2.scatter(x=dummy_x, y=pred_poi_cy_list)
+else:
+    ax2.plot(pred_poi_cy_list)
 ax2.set_ylim([0.0, 1.0])
 ax2.axhline(y=gt_cy, color='red')
 ax2.set_title("cy")
 
 ax3 = axes[1,0]
-ax3.plot(pred_poi_rw_list)
+if needtoscatter:
+    ax3.scatter(x=dummy_x, y=pred_poi_rw_list)
+else:
+    ax3.plot(pred_poi_rw_list)
 ylimit = max ( max(pred_poi_rw_list)*1.1 , gt_rw*1.1)
 ax3.set_ylim([0.0, ylimit])
 ax3.axhline(y=gt_rw, color='red')
 ax3.set_title("rw")
 
 ax4 = axes[1,1]
-ax4.plot(pred_poi_rh_list)
+if needtoscatter:
+    ax4.scatter(x=dummy_x,y=pred_poi_rh_list)
+else:
+    ax4.plot(pred_poi_rh_list)
 ylimit = max( max(pred_poi_rh_list)*1.1 , gt_rh*1.1)
 ax4.set_ylim([0.0, ylimit])
 ax4.axhline(y=gt_rh, color='red')

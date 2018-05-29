@@ -17,6 +17,17 @@ STEP_NUM = 1000000
 
 istraining = True
 
+pred_npz_save_dirname = "att_11"
+pred_npz_save_basedir = os.path.join(os.getcwd(), "pred_saves")
+pred_npz_save_dirpath = os.path.join(pred_npz_save_basedir, pred_npz_save_dirname)
+
+if os.path.exists(pred_npz_save_dirpath):
+    # do nothing for now.
+    print("ignoring duplicate existence")
+    # raise Exception("pred_npz_save_dirpath exists")
+else:
+    os.mkdir(pred_npz_save_dirpath)
+
 
 if istraining:
     g1,notable_tensors, input_holders = create_training_net()
@@ -33,8 +44,10 @@ if istraining:
     testcase_inputloader = InputLoader(testcase=0)
     
 else:
-    inputloader = InputLoader(testcase=1)
+    inputloader = InputLoader(testcase=0)
     image_input, gt , _ , essence, _ = inputloader.get_image_and_gt()
+
+    
 
 
 # essence format: ((center_xy_grid_index,best_B_index,r_cx,r_cy,resized_bw,resized_bh))
@@ -59,7 +72,7 @@ else:
 ap_list = inputloader.get_ap_list()
 
 # print('ap_list',ap_list)
-attempt_num=1
+attempt_num=11
 attempt_num_padded="{:03d}".format(attempt_num)
 SAVE_PATH="./ckpt/model-{}.ckpt".format(attempt_num_padded)
 
@@ -135,7 +148,7 @@ with tf.Session(graph=g1,config=config) as sess:
                     notable_tensors['incorrect_hit_count'],
                     notable_tensors['total_loss'],
                     notable_tensors['iou'],
-                    notable_tensors['valid_iou_boolmask'],
+                    # notable_tensors['valid_iou_boolmask'],
                     notable_tensors['gt_bbx_grid_index'],
                     notable_tensors['gt_bbx_box_index'],
                     notable_tensors['gt_bbx_coords'],
@@ -162,14 +175,14 @@ with tf.Session(graph=g1,config=config) as sess:
                     notable_tensors['gt_mask'],
                     notable_tensors['poi_iou'],
                     notable_tensors['poi_iou_rawform'],
-                    notable_tensors['over_threshold_pred_conf_count']
+                    # notable_tensors['over_threshold_pred_conf_count']
                 
                     ]
 
                 
                 pred_conf, loss_coords, _ , summary_result, \
                     precision, recall, gt_box_count, correct_hit_count, incorrect_hit_count, \
-                    loss, iou, valid_iou_boolmask , gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
+                    loss, iou, gt_bbx_grid_index,gt_bbx_box_index, gt_bbx_coords \
                     , debug_gtbbx_iou , debug_pred_normalized_cxy,debug_pred_after_ap_normalized_wh \
                     ,gt_mask_true_count, debug_gt_poi_conf, early_gt_poi_array, \
                     check1_poi_conf, check2_poi_conf, \
@@ -178,7 +191,7 @@ with tf.Session(graph=g1,config=config) as sess:
                     debug_pred_raw_poi_w, debug_pred_raw_poi_h ,\
                     debug_pred_after_exp_poi_w, debug_pred_after_exp_poi_h \
                     , loss_cxy_poi , pred_conf_poi, gt_conf_poi, gt_mask, poi_iou\
-                    , poi_iou_rawform, over_threshold_pred_conf_count \
+                    , poi_iou_rawform \
                     = sess.run(fetches,feed_dict=feed_dict)
 
                 
@@ -229,7 +242,7 @@ with tf.Session(graph=g1,config=config) as sess:
                     print("pred_out_conf shape=", pred_out_conf.shape)
 
                     predsave_filename = "pred_save_{:06d}".format(step)
-                    predsave_filepath= os.path.join("pred_saves", predsave_filename)
+                    predsave_filepath= os.path.join(pred_npz_save_dirpath, predsave_filename)
 
                     np.savez(predsave_filepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
                     print("TEST FLOW DONE")
