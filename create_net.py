@@ -234,21 +234,21 @@ def create_training_net(istraining=True):
 
         # conf_masked = conf * gt_mask
 
-        conf_threshold = 0.3
-        over_threshold_conf_mask  = conf > 0.3
-        over_threshold_conf_mask = over_threshold_conf_mask 
-        over_threshold_conf_mask_float = tf.to_float(over_threshold_conf_mask)
-        # remove the gt from over_threshold
-        over_threshold_conf_mask_float -= gt_mask
+        # conf_threshold = 0.3
+        # over_threshold_conf_mask  = conf > 0.3
+        # over_threshold_conf_mask = over_threshold_conf_mask 
+        # over_threshold_conf_mask_float = tf.to_float(over_threshold_conf_mask)
+        # # remove the gt from over_threshold
+        # over_threshold_conf_mask_float -= gt_mask
 
-        threshold_converted = 0.3* over_threshold_conf_mask_float
+        # threshold_converted = 0.3* over_threshold_conf_mask_float
 
-        gt_masked_conf = conf * gt_mask
+        # gt_masked_conf = conf * gt_mask
 
-        target_conf = threshold_converted + gt_masked_conf
+        # target_conf = threshold_converted + gt_masked_conf
 
 
-        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=target_conf)
+        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
         loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
         loss_conf = tf.reduce_sum(loss_conf, axis=1)
         loss_conf = tf.reduce_mean(loss_conf)
@@ -274,7 +274,7 @@ def create_training_net(istraining=True):
 
         #===== total loss
      
-        loss = 100* loss_coords + loss_conf
+        loss = loss_coords + loss_conf
         loss = tf.Print(loss,[loss], "loss=")
 
 
@@ -290,6 +290,18 @@ def create_training_net(istraining=True):
         
 
         #============ accuracy calculation
+
+
+        # filter valid_conf
+        conf_threshold = 0.8
+        valid_conf_mask = pred_conf > conf_threshold
+        valid_conf_mask = tf.cast(valid_conf_mask, tf.float32)
+
+        valid_conf_mask_count = tf.count_nonzero(valid_conf_mask)
+
+
+
+
 
         # calculate x1,x2,y1,y2
         
@@ -328,8 +340,20 @@ def create_training_net(istraining=True):
         # hmm... i'm a bit worried about the zero division...
         iou = tf.divide(intersection_area, total_area, name="iou_op")
 
-        valid_iou_boolmask = tf.cast(tf.greater(iou,0.5),tf.float32,name="valid_iou_boolmask_op")
-        valid_iou = tf.multiply(valid_iou_boolmask, iou, name="valid_iou_op")
+        # mask it with valid_conf_mask
+        valid_conf_mask_applied_iou = valid_conf_mask * iou
+
+        # get valid_iou mask
+        iou_threshold = 0.5
+        iou_mask = valid_conf_mask_applied_iou > iou_threshold
+        iou_mask = tf.cast(iou_mask, tf.float32)
+
+        filtered_iou = valid_conf_mask_applied_iou * iou_mask
+
+
+        # valid_iou_boolmask = tf.cast(tf.greater(iou,0.5),tf.float32,name="valid_iou_boolmask_op")
+        # valid_iou = tf.multiply(valid_iou_boolmask, iou, name="valid_iou_op")
+        valid_iou = filtered_iou
 
         #====== get gt gt_box_exist_mask
 
@@ -344,9 +368,23 @@ def create_training_net(istraining=True):
 
         # calculate correct_hit, incorrect_hit
 
-        correct_hit_iou = tf.multiply(valid_iou, gt_box_exist_mask,name="correct_hit_iou_op")
+        # correct_hit_iou = tf.multiply(valid_iou, gt_box_exist_mask,name="correct_hit_iou_op")
         
-        incorrect_hit_iou = tf.multiply(valid_iou, gt_box_invert_exist_mask,name="incorrect_hit_iou_op")
+        # incorrect_hit_iou = tf.multiply(valid_iou, gt_box_invert_exist_mask,name="incorrect_hit_iou_op")
+
+
+        
+        pred_count = tf.count_nonzero(valid_iou)
+        correct_hit = valid_iou * gt_mask
+        correct_hit_count = tf.count_nonzero(correct_hit)
+        incorrect_hit_count = pred_count - correct_hit_count
+
+        precision = correct_hit_count / pred_count
+        recall = correct_hit_count / gt_box_count
+
+        
+
+
 
         poi_iou = iou * gt_mask
         poi_iou_rawform = poi_iou
@@ -358,12 +396,6 @@ def create_training_net(istraining=True):
         
 
 
-
-        # calculate the count for corrent and incorrect
-
-        correct_hit_count = tf.count_nonzero(correct_hit_iou)
-        incorrect_hit_count = tf.count_nonzero(incorrect_hit_iou)
-
         # correct_hit_iou_average = tf.reduce_sum(correct_hit_iou) / tf.cast(correct_hit_count, tf.float32)
 
 
@@ -374,18 +406,9 @@ def create_training_net(istraining=True):
         # precision: correct_hit / (correct_hit + incorrect_hit)
         # recall: corect_hit / gt_box_count
 
-        precision = correct_hit_count / (correct_hit_count + incorrect_hit_count)
-        recall = correct_hit_count / gt_box_count
-
-
         #==== summarize conf
 
-        over_threshold_pred_conf_boolmask = tf.cast(tf.greater(pred_conf, 0.5), tf.float32)
-        over_threshold_pred_conf = pred_conf * over_threshold_pred_conf_boolmask
-
-        over_threshold_pred_conf_count = tf.count_nonzero(over_threshold_pred_conf)
-        over_threshold_pred_conf_count = tf.Print(over_threshold_pred_conf_count, [over_threshold_pred_conf_count], "over_threshold_pred_conf_count=")
-
+        
         poi_pred_conf = pred_conf * gt_mask
         # assuming that gt_mask will only leave one conf value alive...
         poi_pred_conf_average = tf.reshape(poi_pred_conf, shape=[-1,13*13*5])
@@ -448,7 +471,6 @@ def create_training_net(istraining=True):
             'precision' : precision,
             'recall': recall,
             'iou': iou,
-            'valid_iou_boolmask': valid_iou_boolmask,
             'gt_bbx_grid_index': gt_bbx_grid_index,
             'gt_bbx_box_index': gt_bbx_box_index,
             'gt_bbx_coords': gt_bbx_coords,
@@ -477,7 +499,6 @@ def create_training_net(istraining=True):
             'pred_out_cxy': pred_normalized_cxy,
             'pred_out_rwh' : pred_after_ap_normalized_wh,
             'pred_out_conf' : pred_conf,
-            'over_threshold_pred_conf_count': over_threshold_pred_conf_count,
             'poi_pred_conf_average': poi_pred_conf_average
             
         }
