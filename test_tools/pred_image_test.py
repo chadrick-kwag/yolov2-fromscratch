@@ -97,7 +97,7 @@ if save_image_output:
 ## 
 
 # load the pred values
-npzfile_dir = "../pred_saves/att_11"
+npzfile_dir = "../pred_saves/att_12_2"
 
 npzfile_list = os.listdir(npzfile_dir)
 npzfile_list.sort()

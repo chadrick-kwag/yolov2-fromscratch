@@ -5,7 +5,7 @@ import tensorflow as tf
 
 # 
 
-def create_training_net(istraining=True):
+def create_training_net(istraining=True, debug_train_single_input = False):
 
     
 
@@ -20,6 +20,18 @@ def create_training_net(istraining=True):
 
         essence = tf.placeholder(tf.float32,shape=(6),name="essence")
 
+        loss_weights_ph = tf.placeholder(tf.float32, shape=(5), name="loss_weights")
+        loss_weights = tf.Print(loss_weights_ph, [loss_weights_ph], "loss_weights_ph=")
+        
+        lr_ph = tf.placeholder(tf.float32, shape=(1), name="lr_ph")        
+        lr = tf.Print(lr_ph, [lr_ph], "loaded lr=")
+        learning_rate = lr[0]
+
+        # loss_weights = tf.Print(loss_weights, [loss_weights], "loaded loss_weights=")
+        # lr = tf.Print(lr, [lr], "loaded lr=")
+        learning_rate = tf.Print(learning_rate, [learning_rate], "learning rate=")
+        
+        
         
 
         gt_bbx_grid_index = tf.cast(essence[0],tf.int32)
@@ -35,7 +47,9 @@ def create_training_net(istraining=True):
             'input_layer': input_layer,
             'ground_truth': ground_truth,
             'ap_list': ap_list,
-            'essence': essence
+            'essence': essence,
+            'loss_weights': loss_weights_ph,
+            'learning_rate' : lr_ph
         }
 
         output = tf.placeholder(tf.float32,shape=(None,13,13,30))
@@ -162,7 +176,13 @@ def create_training_net(istraining=True):
 
         # the g_cxy and gt_wh are already given as values relative to grid_cell_size(w&h)
         gt_cxy = tf.reshape(gt_coords[:,:,:,0:2],[-1,13*13,5,2])
+        gt_cx = tf.reshape(gt_coords[:,:,:,0], [-1,13*13,5,1])
+        gt_cy = tf.reshape(gt_coords[:,:,:,1], [-1,13*13,5,1])
+
+
         gt_wh = tf.reshape(gt_coords[:,:,:,2:4],[-1,13*13,5,2])
+        gt_rw = tf.reshape(gt_coords[:,:,:,2],[-1,13*13,5,1])
+        gt_rh = tf.reshape(gt_coords[:,:,:,3],[-1,13*13,5,1])
 
         check1_poi_conf = ground_truth[0,gt_bbx_grid_index,gt_bbx_box_index,4]
         
@@ -196,8 +216,28 @@ def create_training_net(istraining=True):
         #lets mask it
         pred_raw_cxy_masked = pred_raw_cxy * gt_mask
 
+        
+        pred_raw_cx_masked = tf.reshape(pred_raw_cxy_masked[:,:,:,0], shape=[-1,13*13,5,1])
+        pred_raw_cy_masked = tf.reshape(pred_raw_cxy_masked[:,:,:,1], shape=[-1,13*13,5,1])
+
+        loss_cx = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cx, logits = pred_raw_cx_masked)
+        loss_cx = loss_cx * gt_mask
+        loss_cx = tf.reduce_sum(loss_cx, axis=1)
+        loss_cx = tf.reduce_mean(loss_cx)
+
+        loss_cy = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cy, logits = pred_raw_cy_masked)
+        loss_cy = loss_cy * gt_mask
+        loss_cy = tf.reduce_sum(loss_cy, axis=1)
+        loss_cy = tf.reduce_mean(loss_cy)
+
+
+
+        
+
         loss_cxy_array = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cxy, logits=pred_raw_cxy_masked)
         loss_cxy_array = loss_cxy_array * gt_mask
+
+
         loss_cxy = tf.reshape(loss_cxy_array, shape=[-1,13*13*5*2])
         loss_cxy = tf.reduce_sum(loss_cxy,axis=1)
         loss_cxy = tf.reduce_mean(loss_cxy)
@@ -211,6 +251,14 @@ def create_training_net(istraining=True):
 
 
         pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
+
+        pred_rw  = tf.reshape(pred_wh_masked[:,:,:,0], shape=[-1,13*13,5,1])
+        loss_rw = tf.losses.mean_squared_error(labels=gt_rw, predictions= pred_rw, reduction=tf.losses.Reduction.MEAN)
+        
+
+        pred_rh = tf.reshape(pred_wh_masked[:,:,:,1], shape=[-1,13*13,5,1])
+        loss_rh = tf.losses.mean_squared_error(labels=gt_rh, predictions= pred_rh, reduction=tf.losses.Reduction.MEAN)
+        
 
         loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_wh_masked)
         loss_wh = tf.Print(loss_wh, [loss_wh], "loss_wh=")
@@ -274,7 +322,16 @@ def create_training_net(istraining=True):
 
         #===== total loss
      
-        loss = loss_coords + loss_conf
+        #print losses
+        loss_cx = tf.Print(loss_cx, [loss_cx], "loss_cx=")
+        loss_cy = tf.Print(loss_cy, [loss_cy], "loss_cy=")
+        loss_rw = tf.Print(loss_rw, [loss_rw], "loss_rw=")
+        loss_rh = tf.Print(loss_rh, [loss_rh], "loss_rh=")
+        loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf=")
+
+        # loss = loss_coords + loss_conf
+        loss = loss_weights[0]* loss_cx + loss_weights[1]*loss_cy + loss_weights[2] *loss_rw + \
+            loss_weights[3]* loss_rh + loss_weights[4]*loss_conf
         loss = tf.Print(loss,[loss], "loss=")
 
 
@@ -282,7 +339,7 @@ def create_training_net(istraining=True):
 
         #======= setup optimizer
         # learning rate
-        optimizer = tf.train.GradientDescentOptimizer(0.000001)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
 
         optimizing_op = optimizer.minimize(loss)
 
@@ -436,18 +493,24 @@ def create_training_net(istraining=True):
 
 
         #========= setup summary
-        tf.summary.scalar(name="loss_cxy", tensor= loss_cxy)
-        tf.summary.scalar(name="loss_rwh", tensor = loss_wh)
-        tf.summary.scalar(name="loss_coords",tensor=loss_coords)
-        tf.summary.scalar(name="loss_conf",tensor=loss_conf)
+        # tf.summary.scalar(name="loss_cxy", tensor= loss_cxy)
+        # tf.summary.scalar(name="loss_rwh", tensor = loss_wh)
+        # tf.summary.scalar(name="loss_coords",tensor=loss_coords)
         # tf.summary.scalar(name="loss_pclass",tensor=loss_pclass)
-        tf.summary.scalar(name="loss",tensor=loss)
         
-        # tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
-        # tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
-        # tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
-        # tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
-        # tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
+        tf.summary.scalar(name="loss_cx",tensor=loss_cx)
+        tf.summary.scalar(name="loss_cy", tensor=loss_cy)
+        tf.summary.scalar(name="loss_rw", tensor = loss_rw)
+        tf.summary.scalar(name="loss_rh", tensor= loss_rh)
+        tf.summary.scalar(name="loss_conf",tensor=loss_conf)
+        tf.summary.scalar(name="loss",tensor=loss)
+
+        if debug_train_single_input:
+            tf.summary.scalar(name="debug_poi_cx",tensor=debug_poi_cx)
+            tf.summary.scalar(name="debug_poi_cy", tensor=debug_poi_cy)
+            tf.summary.scalar(name="debug_poi_rw", tensor=debug_poi_rw)
+            tf.summary.scalar(name="debug_poi_rh", tensor=debug_poi_rh)
+            tf.summary.scalar(name="debug_poi_iou",tensor =debug_poi_iou )
 
         tf.summary.scalar(name="precision", tensor = precision)
         tf.summary.scalar(name="recall", tensor = recall)
@@ -456,6 +519,8 @@ def create_training_net(istraining=True):
         tf.summary.scalar(name="correct_hit_count", tensor = correct_hit_count)
         tf.summary.scalar(name="poi_pred_conf_average", tensor=poi_pred_conf_average)
         # tf.summary.scalar(name="correct_hit_iou_average", tensor = correct_hit_iou_average)
+
+
 
         summary_op = tf.summary.merge_all()
     
@@ -499,7 +564,12 @@ def create_training_net(istraining=True):
             'pred_out_cxy': pred_normalized_cxy,
             'pred_out_rwh' : pred_after_ap_normalized_wh,
             'pred_out_conf' : pred_conf,
-            'poi_pred_conf_average': poi_pred_conf_average
+            'poi_pred_conf_average': poi_pred_conf_average,
+            'loss_cx': loss_cx,
+            'loss_cy': loss_cy,
+            'loss_rw' : loss_rw,
+            'loss_rh' : loss_rh,
+            'loss_conf' : loss_conf
             
         }
 
