@@ -4,6 +4,8 @@ import numpy as np
 from inputloader import InputLoader
 import os, pprint, sys
 import traceback
+from controlparamloader import ControlParamLoader
+import shutil
 
 # load the input and GT
 
@@ -16,32 +18,50 @@ STEP_NUM = 1000000
 # STEP_NUM = 1
 
 istraining = True
+debug_train_single_input = True
 
-pred_npz_save_dirname = "att_11"
+pred_npz_save_dirname = "att_12_2"
 pred_npz_save_basedir = os.path.join(os.getcwd(), "pred_saves")
 pred_npz_save_dirpath = os.path.join(pred_npz_save_basedir, pred_npz_save_dirname)
 
 if os.path.exists(pred_npz_save_dirpath):
     # do nothing for now.
-    print("ignoring duplicate existence")
-    # raise Exception("pred_npz_save_dirpath exists")
+    # print("ignoring duplicate existence")
+
+    reset_dir = True
+
+    if reset_dir:
+        shutil.rmtree(pred_npz_save_dirpath)
+        os.mkdir(pred_npz_save_dirpath)
+    else:
+        raise Exception("pred_npz_save_dirpath exists")
+
 else:
     os.mkdir(pred_npz_save_dirpath)
 
 
 if istraining:
-    g1,notable_tensors, input_holders = create_training_net()
+    if debug_train_single_input:
+        g1,notable_tensors, input_holders = create_training_net(debug_train_single_input=True)
+    else:
+        g1,notable_tensors, input_holders = create_training_net()
 else:
     g1,notable_tensors, input_holders = create_training_net(istraining=False)
 
-# inputloader = InputLoader(testcase=0)
 
 if istraining:
 
-    inputloader = InputLoader(batch_num=4)
+    if debug_train_single_input:
+        inputloader = InputLoader(testcase=0)
+    else:
+        inputloader = InputLoader(batch_num=4)
+
+
     image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
 
     testcase_inputloader = InputLoader(testcase=0)
+
+    controlparamloader = ControlParamLoader()
     
 else:
     inputloader = InputLoader(testcase=0)
@@ -89,6 +109,12 @@ with tf.Session(graph=g1,config=config) as sess:
 
 
     if istraining:
+        
+        single_train_run = False
+
+        if single_train_run:
+            print("training_debug True!!!!")
+
         writer= tf.summary.FileWriter(logdir="./summary",graph=sess.graph)
         writer.flush()
 
@@ -111,8 +137,10 @@ with tf.Session(graph=g1,config=config) as sess:
         # if ckpt exist, then load from it
     
         # saver.restore(sess, SAVE_PATH)
+
+
     last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
-    # print("last_checkpoint=", last_checkpoint)
+    print("last_checkpoint=", last_checkpoint)
     # last_checkpoint = "./ckpt/model-001.ckpt-3000"
     if last_checkpoint is not None:
         saver.restore(sess,last_checkpoint)
@@ -130,11 +158,21 @@ with tf.Session(graph=g1,config=config) as sess:
 
                 image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
 
+                weights, learn_r = controlparamloader.getconfig()
+                
+                weights = np.array(weights,dtype=float)
+                learn_r = np.array(learn_r, dtype=float)
+
+                print("weights = ", weights)
+                print("learn_r=", learn_r)
+
                 feed_dict = {
                     input_holders['input_layer'] : image_input,
                     input_holders['ground_truth'] : gt,
                     input_holders['ap_list'] : ap_list,
-                    input_holders['essence']: essence[0][0]
+                    input_holders['essence']: essence[0][0],
+                    input_holders['loss_weights']: weights,
+                    input_holders['learning_rate']: learn_r
                 }
 
                 fetches=[ notable_tensors['conf_pred'], 
@@ -249,8 +287,15 @@ with tf.Session(graph=g1,config=config) as sess:
 
                 if step % 1000 == 0:
                     # interval to save ckpt
-                    save_path = saver.save(sess,SAVE_PATH, global_step=step)
-                    print("model saved to {}".format(save_path))
+
+                    # will not save ckpt if we are in training_debug
+                    if not single_train_run:
+                        save_path = saver.save(sess,SAVE_PATH, global_step=step)
+                        print("model saved to {}".format(save_path))
+
+                if single_train_run:
+                    # in training_debug, we only do a single loop of training
+                    break
 
             print("train looping finished")
         
@@ -269,15 +314,27 @@ with tf.Session(graph=g1,config=config) as sess:
             fetches=[
                 notable_tensors['pred_out_cxy'],
                 notable_tensors['pred_out_rwh'],
-                notable_tensors['pred_out_conf']
+                notable_tensors['pred_out_conf'],
+                notable_tensors['loss_cx'],
+                notable_tensors['loss_cy'],
+                notable_tensors['loss_rw'],
+                notable_tensors['loss_rh'],
+                notable_tensors['loss_conf'],
             ]
 
 
-            pred_out_cxy, pred_out_rwh, pred_out_conf = sess.run(fetches, feed_dict=feed_dict)
+            pred_out_cxy, pred_out_rwh, pred_out_conf, \
+            loss_cx, loss_cy, loss_rw, loss_rh, loss_conf = sess.run(fetches, feed_dict=feed_dict)
 
             print("pred_out_cxy shape=", pred_out_cxy.shape)
             print("pred_out_rwh shape=", pred_out_rwh.shape)
             print("pred_out_conf shape=", pred_out_conf.shape)
+
+            print("loss_cx=",loss_cx)
+            print("loss_cy=", loss_cy)
+            print("loss_rw=", loss_rw)
+            print("loss_rh=", loss_rh)
+            print("loss_conf=", loss_conf)
 
             outfilename = "pred_save"
             outfilepath = os.path.join("pred_saves", outfilename)
