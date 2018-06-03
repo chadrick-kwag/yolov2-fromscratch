@@ -105,14 +105,4 @@ def loss(self, net_out):
     loss = tf.reduce_sum(loss, 1)
     self.loss = .5 * tf.reduce_mean(loss)
     tf.summary.scalar('{} loss'.format(m['model']), self.loss)
-    true = tf.concat([_coord, tf.expand_dims(confs, 3), _probs ], 3)
-    wght = tf.concat([cooid, tf.expand_dims(conid, 3), proid ], 3)
-
-
-    print('Building {} loss'.format(m['model']))
-    loss = tf.pow(adjusted_net_out - true, 2)
-    loss = tf.multiply(loss, wght)
-    loss = tf.reshape(loss, [-1, H*W*B*(4 + 1 + C)])
-    loss = tf.reduce_sum(loss, 1)
-    self.loss = .5 * tf.reduce_mean(loss)
-    tf.summary.scalar('{} loss'.format(m['model']), self.loss)
+    
