@@ -295,8 +295,12 @@ def create_training_net(istraining=True, debug_train_single_input = False):
 
         # target_conf = threshold_converted + gt_masked_conf
 
+        loss_conf_weight = 0.1*gt_mask_invert_float + 10 * gt_mask
+        print("loss_conf_weight", loss_conf_weight)
 
         loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
+        loss_conf = tf.multiply(loss_conf, loss_conf_weight)
+        print("loss_conf after multiplying with loss_conf_weight:", loss_conf)
         loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
         loss_conf = tf.reduce_sum(loss_conf, axis=1)
         loss_conf = tf.reduce_mean(loss_conf)
