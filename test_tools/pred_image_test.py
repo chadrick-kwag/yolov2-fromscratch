@@ -20,7 +20,7 @@ il = InputLoader(testcase=0)
 input_image_dir = il.images_directory
 annotation_dir = il.annotation_directory
 
-threshold = 0.7
+threshold = 0.6
 save_conf_histogram = True
 save_image_output = True
 show_bbxed_image = False
@@ -28,6 +28,8 @@ show_bbxed_image = False
 OUTPUT_DIR="analysis_image_output"
 
 OUTPUT_DIR_FULLPATH = os.path.abspath(OUTPUT_DIR)
+
+npzfile_dir = "../pred_saves/att_16"
 
 # create directory
 
@@ -97,7 +99,7 @@ if save_image_output:
 ## 
 
 # load the pred values
-npzfile_dir = "../pred_saves/att_13"
+
 
 npzfile_list = os.listdir(npzfile_dir)
 npzfile_list.sort()
