@@ -354,7 +354,7 @@ def create_training_net(istraining=True, debug_train_single_input = False):
 
 
         # filter valid_conf
-        conf_threshold = 0.8
+        conf_threshold = 0.6
         valid_conf_mask = pred_conf > conf_threshold
         valid_conf_mask = tf.cast(valid_conf_mask, tf.float32)
 

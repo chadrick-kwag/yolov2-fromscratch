@@ -190,7 +190,7 @@ with tf.Session(graph=g1,config=config) as sess:
 
     steps = STEP_NUM
 
-    print('essence:',essence)
+    # print('essence:',essence)
     print('essence to pass on to:', essence[0][0])
 
     
