@@ -10,6 +10,11 @@ import shutil
 # load the input and GT
 
 
+def do_param_log(param_log_fd, weights, learn_r, step):
+    towrite = "step={}, weights={}, lr={}\n".format(step, weights, learn_r)
+    param_log_fd.write(towrite)
+
+
 np_array_save_file = 'NP_SAVE.txt'
 
 # input_batch
@@ -18,11 +23,48 @@ STEP_NUM = 1000000
 # STEP_NUM = 1
 
 istraining = True
-debug_train_single_input = True
+debug_train_single_input = False
 
-pred_npz_save_dirname = "att_12_2"
+attempt_num=16
+
+
+
+# print out current starting configuration
+
+print("=== CURRENT SETUP ====")
+if istraining:
+    task_type = "train"
+else:
+    task_type = "inference"
+
+print("task type: {}".format(task_type))
+
+if istraining:
+    print("training with single sample: ", debug_train_single_input)
+
+print("attempt id: {}".format(attempt_num))
+
+
+user_input= input("\nwould like to proceed with current settings? (y/n)")
+print(user_input)
+if user_input=='y' or user_input == 'Y' or user_input == "":
+    pass
+elif user_input=='n' or user_input=='N':
+    sys.exit(0)
+else:
+    print("invalid input")
+    sys.exit(0)
+
+    
+#### check output dirs
+
+
+pred_npz_save_dirname = "att_{}".format(attempt_num)
 pred_npz_save_basedir = os.path.join(os.getcwd(), "pred_saves")
 pred_npz_save_dirpath = os.path.join(pred_npz_save_basedir, pred_npz_save_dirname)
+
+
+# setup npz file output
 
 if os.path.exists(pred_npz_save_dirpath):
     # do nothing for now.
@@ -38,6 +80,30 @@ if os.path.exists(pred_npz_save_dirpath):
 
 else:
     os.mkdir(pred_npz_save_dirpath)
+
+
+# setup model ckpt output
+attempt_num_padded="{}".format(attempt_num)
+SAVE_PATH="./ckpt/model-{}.ckpt".format(attempt_num_padded)
+
+
+# setup param_log dir, only when training
+
+if istraining:
+    param_log_dirname="param_log"
+    param_log_dirpath = os.path.join(os.getcwd(), param_log_dirname)
+    param_log_filename="paramlog_{}.log".format(attempt_num)
+
+    param_log_filepath = os.path.join(param_log_dirpath, param_log_filename)
+
+    if os.path.exists(param_log_filepath):
+        os.remove(param_log_filepath)
+    
+    param_log_fd = open(param_log_filepath,'w')
+    
+    
+
+
 
 
 if istraining:
@@ -92,9 +158,8 @@ else:
 ap_list = inputloader.get_ap_list()
 
 # print('ap_list',ap_list)
-attempt_num=11
-attempt_num_padded="{:03d}".format(attempt_num)
-SAVE_PATH="./ckpt/model-{}.ckpt".format(attempt_num_padded)
+
+
 
 
 #=== setup gpu configuration
@@ -153,26 +218,40 @@ with tf.Session(graph=g1,config=config) as sess:
 
         if istraining:
 
+            weights = None
+            learn_r = None
+
             for step in range(steps):
 
 
                 image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
-
-                weights, learn_r = controlparamloader.getconfig()
                 
-                weights = np.array(weights,dtype=float)
-                learn_r = np.array(learn_r, dtype=float)
+                prev_weights = weights
+                prev_learn_r = learn_r
+                weights, learn_r = controlparamloader.getconfig()
 
-                print("weights = ", weights)
-                print("learn_r=", learn_r)
+                print("weights", weights)
+                print("learn_r", learn_r)
+
+                # check and log param is necessary
+                if weights == None or learn_r == None:
+                    do_param_log(param_log_fd, weights, learn_r, step)
+                elif prev_weights != weights or prev_learn_r != learn_r:
+                    do_param_log(param_log_fd, weights, learn_r, step)
+                
+                np_weights = np.array(weights,dtype=float)
+                np_learn_r = np.array(learn_r, dtype=float)
+
+                print("weights = ", np_weights)
+                print("learn_r=", np_learn_r)
 
                 feed_dict = {
                     input_holders['input_layer'] : image_input,
                     input_holders['ground_truth'] : gt,
                     input_holders['ap_list'] : ap_list,
                     input_holders['essence']: essence[0][0],
-                    input_holders['loss_weights']: weights,
-                    input_holders['learning_rate']: learn_r
+                    input_holders['loss_weights']: np_weights,
+                    input_holders['learning_rate']: np_learn_r
                 }
 
                 fetches=[ notable_tensors['conf_pred'], 
@@ -247,7 +326,7 @@ with tf.Session(graph=g1,config=config) as sess:
                 # print("gt_mask saved")
 
                 # after all the steps, save to ckpt
-                if step % 500 ==0:
+                if step % 100 ==0:
                     print("FLOWING TESTECASE AT CHECKPOINT STEP #{}".format(step))
 
 
