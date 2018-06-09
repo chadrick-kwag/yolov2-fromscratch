@@ -5,3 +5,4 @@ ckpt/*
 ckpt_storage/*
 testdataset
 pred_saves
+control_params.config
