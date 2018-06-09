@@ -24,7 +24,7 @@ def recreate_filepaths(modelid, dirpath, stepnum):
 if sys.version_info[0]<3:
     raise Exception("must use python3")
 
-ckptdir="ckpt"
+ckptdir="../ckpt"
 ckptdirpath = os.path.join(os.getcwd(), ckptdir)
 
 # check if ckptdirpath exists
