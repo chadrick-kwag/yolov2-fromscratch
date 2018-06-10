@@ -1,4 +1,5 @@
 import os, re, sys, shutil
+from util import ckpt_del_tool
 
 
 def recreate_filepaths(modelid, dirpath, stepnum):
@@ -99,7 +100,9 @@ else:
     sys.exit(0)
 
 for step in selected_steps:
-    metapath, indexpath, datapath = recreate_filepaths(modelid, ckpt_dir_path, step)
+    metapath, indexpath, datapath = ckpt_del_tool.recreate_filepaths(modelid, ckpt_dir_path, step)
+
+    
     shutil.move(metapath, ckpt_save_dir_path)
     shutil.move(indexpath, ckpt_save_dir_path)
     shutil.move(datapath, ckpt_save_dir_path)

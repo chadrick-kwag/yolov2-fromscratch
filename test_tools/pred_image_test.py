@@ -31,29 +31,6 @@ OUTPUT_DIR_FULLPATH = os.path.abspath(OUTPUT_DIR)
 
 npzfile_dir = "../pred_saves/att_16"
 
-# create directory
-
-# dirlist =os.listdir()
-
-# dirlist = [ f for f in dirlist if os.path.isdir(f)]
-
-# match_str = "{}_(\d+)".format(OUTPUT_DIR)
-# prog = re.compile(match_str)
-
-# same_pattern_dirname_exist = False
-# temp_dirnum=0
-
-# for d in dirlist:
-#     # m = re.match(match_str, d)
-#     m = prog.match(d)
-#     if m is not None:
-#         same_pattern_dirname_exist = True
-#         dir_number = m.group(1)
-
-        
-#     # step_num = m.group(1)
-#     # print("step num={}".format(step_num))
-
 
 
 if os.path.exists(OUTPUT_DIR):
@@ -62,9 +39,6 @@ if os.path.exists(OUTPUT_DIR):
 
 os.mkdir(OUTPUT_DIR)
 
-
-
-# sys.exit(1)
 
 
 if not save_conf_histogram and not save_image_output:

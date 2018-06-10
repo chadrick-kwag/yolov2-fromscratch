@@ -6,6 +6,8 @@ import os, pprint, sys
 import traceback
 from controlparamloader import ControlParamLoader
 import shutil
+from util import pred_processor
+import cv2
 
 # load the input and GT
 
@@ -16,14 +18,17 @@ def do_param_log(param_log_fd, weights, learn_r, step):
 
 
 np_array_save_file = 'NP_SAVE.txt'
+infer_output_dir = "infer_output"
 
 # input_batch
 # gt_batch
 STEP_NUM = 1000000
 # STEP_NUM = 1
 
-istraining = True
+istraining = False
 debug_train_single_input = False
+
+one_epoch_test=True
 
 attempt_num=16
 
@@ -41,8 +46,16 @@ print("task type: {}".format(task_type))
 
 if istraining:
     print("training with single sample: ", debug_train_single_input)
+    print("attempt id: {}".format(attempt_num))
+else:
+    
+    if one_epoch_test:
+        print("infering entire dataset")
+    else:
+        print("infering single testcase")
+    
 
-print("attempt id: {}".format(attempt_num))
+
 
 
 user_input= input("\nwould like to proceed with current settings? (y/n)")
@@ -103,7 +116,7 @@ if istraining:
     
     
 
-
+  
 
 
 if istraining:
@@ -130,34 +143,21 @@ if istraining:
     controlparamloader = ControlParamLoader()
     
 else:
-    inputloader = InputLoader(testcase=0)
-    image_input, gt , _ , essence, _ = inputloader.get_image_and_gt()
-
+    # check if infer output dir exists or not
+    infer_output_dirpath = os.path.join(os.getcwd(), infer_output_dir)
+    if not os.path.exists(infer_output_dirpath):
+        os.makedirs(infer_output_dirpath)
     
 
-
-# essence format: ((center_xy_grid_index,best_B_index,r_cx,r_cy,resized_bw,resized_bh))
-
-# print("essence={}".format(essence))
-
-
-# check gt
-# selected_essence = essence[0][0]
-# gt_poi_grid_index = selected_essence[0]
-# gt_poi_box_index = selected_essence[1]
-
-# print('gt_poi_grid_index',gt_poi_grid_index)
-# print('gt_poi_box_index',gt_poi_box_index)
-
-# gt_poi_conf = gt[0][gt_poi_grid_index][gt_poi_box_index][4]
-# print('gt_poi_conf',gt_poi_conf)
-
-
-
+    if one_epoch_test:
+        inputloader = InputLoader(batch_num=4)
+        predprocessor = pred_processor.PredictionProcessor_v1()
+    else:
+        inputloader = InputLoader(testcase=0)
+        image_input, gt , _ , essence, _ = inputloader.get_image_and_gt()
 
 ap_list = inputloader.get_ap_list()
 
-# print('ap_list',ap_list)
 
 
 
@@ -191,7 +191,7 @@ with tf.Session(graph=g1,config=config) as sess:
     steps = STEP_NUM
 
     # print('essence:',essence)
-    print('essence to pass on to:', essence[0][0])
+    # print('essence to pass on to:', essence[0][0])
 
     
 
@@ -207,6 +207,15 @@ with tf.Session(graph=g1,config=config) as sess:
     last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
     print("last_checkpoint=", last_checkpoint)
     # last_checkpoint = "./ckpt/model-001.ckpt-3000"
+    if not istraining:
+        uinput = input("proceed with ckpt: {} ?\n".format(last_checkpoint))
+
+        if uinput=='y' or uinput=='Y' or uinput=="":
+            pass
+        else:
+            raise Exception("abort")
+
+
     if last_checkpoint is not None:
         saver.restore(sess,last_checkpoint)
         print("!!!!! restoring...!!! ")
@@ -381,45 +390,89 @@ with tf.Session(graph=g1,config=config) as sess:
         else:
             # inferencing. not training.
 
-            image_input, gt, _ , essence, _ = inputloader.get_image_and_gt()
+            output_image_count =0
+            while True:
 
-            feed_dict = {
-                input_holders['input_layer'] : image_input,
-                input_holders['ground_truth'] : gt,
-                input_holders['ap_list'] : ap_list,
-                input_holders['essence']: essence[0][0]
-            }
+                image_input, gt, epoch_end_signal , essence, picked_files = inputloader.get_image_and_gt()
 
-            fetches=[
-                notable_tensors['pred_out_cxy'],
-                notable_tensors['pred_out_rwh'],
-                notable_tensors['pred_out_conf'],
-                notable_tensors['loss_cx'],
-                notable_tensors['loss_cy'],
-                notable_tensors['loss_rw'],
-                notable_tensors['loss_rh'],
-                notable_tensors['loss_conf'],
-            ]
+                if one_epoch_test and epoch_end_signal:
+                    print("one epoch finished")
+                    break
 
 
-            pred_out_cxy, pred_out_rwh, pred_out_conf, \
-            loss_cx, loss_cy, loss_rw, loss_rh, loss_conf = sess.run(fetches, feed_dict=feed_dict)
 
-            print("pred_out_cxy shape=", pred_out_cxy.shape)
-            print("pred_out_rwh shape=", pred_out_rwh.shape)
-            print("pred_out_conf shape=", pred_out_conf.shape)
+                feed_dict = {
+                    input_holders['input_layer'] : image_input,
+                    input_holders['ground_truth'] : gt,
+                    input_holders['ap_list'] : ap_list,
+                    input_holders['essence']: essence[0][0]
+                }
 
-            print("loss_cx=",loss_cx)
-            print("loss_cy=", loss_cy)
-            print("loss_rw=", loss_rw)
-            print("loss_rh=", loss_rh)
-            print("loss_conf=", loss_conf)
+                fetches=[
+                    notable_tensors['pred_out_cxy'],
+                    notable_tensors['pred_out_rwh'],
+                    notable_tensors['pred_out_conf'],
+                    notable_tensors['loss_cx'],
+                    notable_tensors['loss_cy'],
+                    notable_tensors['loss_rw'],
+                    notable_tensors['loss_rh'],
+                    notable_tensors['loss_conf'],
+                ]
 
-            outfilename = "pred_save"
-            outfilepath = os.path.join("pred_saves", outfilename)
 
-            np.savez(outfilepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
-            print("prediction arrays saved as file")
+                pred_out_cxy, pred_out_rwh, pred_out_conf, \
+                loss_cx, loss_cy, loss_rw, loss_rh, loss_conf = sess.run(fetches, feed_dict=feed_dict)
+
+                # print("pred_out_cxy shape=", pred_out_cxy.shape)
+                # print("pred_out_rwh shape=", pred_out_rwh.shape)
+                # print("pred_out_conf shape=", pred_out_conf.shape)
+
+                # print("loss_cx=",loss_cx)
+                # print("loss_cy=", loss_cy)
+                # print("loss_rw=", loss_rw)
+                # print("loss_rh=", loss_rh)
+                # print("loss_conf=", loss_conf)
+
+                if one_epoch_test:
+                    # do something
+                    print("size of batch = ",len(image_input) )
+                    for item_index in range(len(image_input)):
+                        single_pred_cxy = pred_out_cxy[item_index]
+                        single_pred_rwh = pred_out_rwh[item_index]
+                        single_pred_conf = pred_out_conf[item_index]
+                        single_gt = gt[item_index]
+                        single_image = image_input[item_index]
+
+                        processed_image = predprocessor.draw_all_bbx(pred_out_cxy=single_pred_cxy,
+                        pred_out_rwh = single_pred_rwh,
+                        pred_out_conf = single_pred_conf,
+                        gt_arr = single_gt,
+                        image = single_image)
+
+                        output_image_filename = "{:03d}.png".format(output_image_count)
+                        output_image_count+=1
+
+                        cv2.imwrite(output_image_filename, processed_image)
+                        shutil.move(output_image_filename, infer_output_dir)
+                    
+                        # save the image and move it to output dir
+                        
+                        
+                    
+                    
+
+                else:
+
+                    outfilename = "pred_save"
+                    outfilepath = os.path.join("pred_saves", outfilename)
+
+                    np.savez(outfilepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
+                    print("prediction arrays saved as file")
+
+                    break
+
+
+            
 
             
 
