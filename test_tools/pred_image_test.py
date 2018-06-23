@@ -20,7 +20,7 @@ il = InputLoader(testcase=0)
 input_image_dir = il.images_directory
 annotation_dir = il.annotation_directory
 
-threshold = 0.6
+threshold = 0.5
 save_conf_histogram = True
 save_image_output = True
 show_bbxed_image = False
@@ -29,7 +29,7 @@ OUTPUT_DIR="analysis_image_output"
 
 OUTPUT_DIR_FULLPATH = os.path.abspath(OUTPUT_DIR)
 
-npzfile_dir = "../pred_saves/att_16"
+npzfile_dir = "../pred_saves/att_17"
 
 
 

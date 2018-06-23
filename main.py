@@ -30,7 +30,7 @@ debug_train_single_input = False
 
 one_epoch_test=True
 
-attempt_num=16
+attempt_num=17
 
 
 
@@ -204,9 +204,9 @@ with tf.Session(graph=g1,config=config) as sess:
         # saver.restore(sess, SAVE_PATH)
 
 
-    last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
-    print("last_checkpoint=", last_checkpoint)
-    # last_checkpoint = "./ckpt/model-001.ckpt-3000"
+    # last_checkpoint = tf.train.latest_checkpoint('./ckpt/')
+    # print("last_checkpoint=", last_checkpoint)
+    last_checkpoint = "./ckpt/model-17.ckpt-98000"
     if not istraining:
         uinput = input("proceed with ckpt: {} ?\n".format(last_checkpoint))
 
@@ -456,10 +456,7 @@ with tf.Session(graph=g1,config=config) as sess:
                         shutil.move(output_image_filename, infer_output_dir)
                     
                         # save the image and move it to output dir
-                        
-                        
-                    
-                    
+
 
                 else:
 

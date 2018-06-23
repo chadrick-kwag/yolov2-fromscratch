@@ -220,16 +220,26 @@ def create_training_net(istraining=True, debug_train_single_input = False):
         pred_raw_cx_masked = tf.reshape(pred_raw_cxy_masked[:,:,:,0], shape=[-1,13*13,5,1])
         pred_raw_cy_masked = tf.reshape(pred_raw_cxy_masked[:,:,:,1], shape=[-1,13*13,5,1])
 
-        loss_cx = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cx, logits = pred_raw_cx_masked)
-        loss_cx = loss_cx * gt_mask
-        loss_cx = tf.reduce_sum(loss_cx, axis=1)
-        loss_cx = tf.reduce_mean(loss_cx)
+        # loss_cx = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cx, logits = pred_raw_cx_masked)
+        # loss_cx = loss_cx * gt_mask
+        # loss_cx = tf.reduce_sum(loss_cx, axis=1)
+        # loss_cx = tf.reduce_mean(loss_cx)
 
-        loss_cy = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cy, logits = pred_raw_cy_masked)
-        loss_cy = loss_cy * gt_mask
-        loss_cy = tf.reduce_sum(loss_cy, axis=1)
-        loss_cy = tf.reduce_mean(loss_cy)
+        # loss_cy = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_cy, logits = pred_raw_cy_masked)
+        # loss_cy = loss_cy * gt_mask
+        # loss_cy = tf.reduce_sum(loss_cy, axis=1)
+        # loss_cy = tf.reduce_mean(loss_cy)
 
+
+        pred_cx_sigmoid = tf.nn.sigmoid(tf.reshape(pred_raw_cxy_masked[:,:,:,0], shape=[-1,13*13,5,1]))
+        pred_cy_sigmoid = tf.nn.sigmoid(tf.reshape(pred_raw_cxy_masked[:,:,:,1], shape=[-1,13*13,5,1]))
+
+        print("pred_cx_sigmoid", pred_cx_sigmoid)
+        print("gt_mask", gt_mask)
+        loss_cx = tf.losses.mean_squared_error(labels=gt_cx, predictions=pred_cx_sigmoid, weights=gt_mask, reduction=tf.losses.Reduction.MEAN)
+        print("loss_cx", loss_cx)
+
+        loss_cy = tf.losses.mean_squared_error(labels=gt_cy, predictions=pred_cy_sigmoid, weights= gt_mask, reduction=tf.losses.Reduction.MEAN)
 
 
         
@@ -250,17 +260,17 @@ def create_training_net(istraining=True, debug_train_single_input = False):
 
 
 
-        pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
+        # pred_wh_masked = pred_after_ap_normalized_wh * gt_mask
 
-        pred_rw  = tf.reshape(pred_wh_masked[:,:,:,0], shape=[-1,13*13,5,1])
-        loss_rw = tf.losses.mean_squared_error(labels=gt_rw, predictions= pred_rw, reduction=tf.losses.Reduction.MEAN)
+        pred_rw  = tf.reshape(pred_after_ap_normalized_wh[:,:,:,0], shape=[-1,13*13,5,1])
+        loss_rw = tf.losses.mean_squared_error(labels=gt_rw, predictions= pred_rw, weights=gt_mask, reduction=tf.losses.Reduction.MEAN)
         
 
-        pred_rh = tf.reshape(pred_wh_masked[:,:,:,1], shape=[-1,13*13,5,1])
-        loss_rh = tf.losses.mean_squared_error(labels=gt_rh, predictions= pred_rh, reduction=tf.losses.Reduction.MEAN)
+        pred_rh = tf.reshape(pred_after_ap_normalized_wh[:,:,:,1], shape=[-1,13*13,5,1])
+        loss_rh = tf.losses.mean_squared_error(labels=gt_rh, predictions= pred_rh, weights=gt_mask,reduction=tf.losses.Reduction.MEAN)
         
 
-        loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_wh_masked)
+        loss_wh = tf.losses.mean_squared_error(labels=gt_wh, predictions= pred_after_ap_normalized_wh, weights=gt_mask)
         loss_wh = tf.Print(loss_wh, [loss_wh], "loss_wh=")
 
   
@@ -298,12 +308,19 @@ def create_training_net(istraining=True, debug_train_single_input = False):
         loss_conf_weight = 0.1*gt_mask_invert_float + 10 * gt_mask
         print("loss_conf_weight", loss_conf_weight)
 
-        loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
-        loss_conf = tf.multiply(loss_conf, loss_conf_weight)
-        print("loss_conf after multiplying with loss_conf_weight:", loss_conf)
-        loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
-        loss_conf = tf.reduce_sum(loss_conf, axis=1)
-        loss_conf = tf.reduce_mean(loss_conf)
+        # this is cross entropy loss for conf
+        # loss_conf = tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_conf,logits=conf)
+        # loss_conf = tf.multiply(loss_conf, loss_conf_weight)
+        # print("loss_conf after multiplying with loss_conf_weight:", loss_conf)
+        # loss_conf = tf.reshape(loss_conf, shape=[-1,13*13*5])
+        # loss_conf = tf.reduce_sum(loss_conf, axis=1)
+        # loss_conf = tf.reduce_mean(loss_conf)
+        # loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf=")
+
+        conf_sigmoid = tf.nn.sigmoid(conf)
+        print("conf_sigmoid", conf_sigmoid)
+        loss_conf = tf.losses.mean_squared_error(labels=gt_conf, predictions=conf_sigmoid, weights=loss_conf_weight, reduction=tf.losses.Reduction.MEAN)
+        print("loss_conf", loss_conf)
         loss_conf = tf.Print(loss_conf, [loss_conf], "loss_conf=")
 
 
@@ -347,9 +364,6 @@ def create_training_net(istraining=True, debug_train_single_input = False):
 
         optimizing_op = optimizer.minimize(loss)
 
-
-        
-
         #============ accuracy calculation
 
 
@@ -359,10 +373,6 @@ def create_training_net(istraining=True, debug_train_single_input = False):
         valid_conf_mask = tf.cast(valid_conf_mask, tf.float32)
 
         valid_conf_mask_count = tf.count_nonzero(valid_conf_mask)
-
-
-
-
 
         # calculate x1,x2,y1,y2
         

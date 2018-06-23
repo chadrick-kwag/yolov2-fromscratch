@@ -21,6 +21,7 @@ def recreate_filepaths(modelid, dirpath, stepnum):
     return metapath, indexpath, datapath
 
 
+
 def main():
 
     # check if using python3

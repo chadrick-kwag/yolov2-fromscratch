@@ -3,7 +3,7 @@ import cv2
 
 class PredictionProcessor_v1:
     
-    threshold = 0.7
+    threshold = 0.5
 
     def get_rect_points(self,cx,cy,w,h):
         p1=( int(cx-w/2) ,  int(cy-h/2) )
@@ -110,6 +110,10 @@ class PredictionProcessor_v1:
         return_image = cv2.cvtColor(reduced_image, cv2.COLOR_RGB2BGR)
 
         return return_image
+
+
+    # def extract_all_boxes(self,pred_out_cxy=None, pred_out_rwh=None, pred_out_conf=None):
+        
 
 
 
