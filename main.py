@@ -31,7 +31,7 @@ STEP_NUM = 1000000
 istraining = False
 debug_train_single_input = False
 
-one_epoch_test = False
+one_epoch_test = True
 
 attempt_num = 17
 
@@ -405,6 +405,9 @@ with tf.Session(graph=g1, config=config) as sess:
                 # print("loss_conf=", loss_conf)
 
                 if one_epoch_test:
+
+                    boxmanager = Box.BoxManager()
+
                     # do something
                     print("size of batch = ", len(image_input))
                     for item_index in range(len(image_input)):
@@ -414,11 +417,18 @@ with tf.Session(graph=g1, config=config) as sess:
                         single_gt = gt[item_index]
                         single_image = image_input[item_index]
 
-                        processed_image = predprocessor.draw_all_bbx(pred_out_cxy=single_pred_cxy,
-                                                                     pred_out_rwh=single_pred_rwh,
-                                                                     pred_out_conf=single_pred_conf,
-                                                                     gt_arr=single_gt,
-                                                                     image=single_image)
+                        boxlist = boxmanager.convert_for_single_image(
+                            single_pred_cxy, single_pred_rwh, single_pred_conf, applyNMS=True)
+                        gtboxlist = boxmanager.get_gt_boxes(single_gt)
+
+                        processed_image = predprocessor.draw_all_boxes(
+                            boxlist, single_image, gtboxlist=gtboxlist)
+
+                        # processed_image = predprocessor.draw_all_bbx(pred_out_cxy=single_pred_cxy,
+                        #                                              pred_out_rwh=single_pred_rwh,
+                        #                                              pred_out_conf=single_pred_conf,
+                        #                                              gt_arr=single_gt,
+                        #                                              image=single_image)
 
                         output_image_filename = "{:03d}.png".format(
                             output_image_count)
@@ -431,21 +441,15 @@ with tf.Session(graph=g1, config=config) as sess:
 
                 else:
 
-                    # outfilename = "pred_save"
-                    # outfilepath = os.path.join("pred_saves", outfilename)
-
-                    # np.savez(outfilepath,pred_out_cxy = pred_out_cxy, pred_out_rwh = pred_out_rwh, pred_out_conf = pred_out_conf)
-                    # print("prediction arrays saved as file")
                     boxmanager = Box.BoxManager()
                     gtboxlist = boxmanager.get_gt_boxes(gt[0])
-                    boxlist = boxmanager.convert(
+                    boxlist = boxmanager.convert_for_single_image(
                         pred_out_cxy, pred_out_rwh, pred_out_conf, applyNMS=True)
-                    boxlist_noNMS = boxmanager.convert(
+                    boxlist_noNMS = boxmanager.convert_for_single_image(
                         pred_out_cxy, pred_out_rwh, pred_out_conf)
 
-                    single_boxlist = boxlist[0]
                     processed_image = predprocessor.draw_all_boxes(
-                        single_boxlist, image_input[0], gtboxlist=gtboxlist)
+                        boxlist, image_input[0], gtboxlist=gtboxlist)
 
                     cv2.imwrite("single_test_infer.png", processed_image)
 

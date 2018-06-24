@@ -30,7 +30,7 @@ class BoxManager:
         p2 = (int(cx+w/2), int(cy + h/2))
         return p1, p2
 
-    def convert(self, pred_out_cxy, pred_out_rwh, pred_out_conf, applyNMS=False):
+    def convert_for_batch(self, pred_out_cxy, pred_out_rwh, pred_out_conf, applyNMS=False):
 
         boxlist = []
 
