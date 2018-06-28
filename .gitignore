@@ -7,3 +7,4 @@ testdataset
 pred_saves
 control_params.config
 infer_output
+single_test_infer.png

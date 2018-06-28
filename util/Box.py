@@ -1,6 +1,33 @@
 import numpy as np
 
 
+def calculate_iou(box1, box2):
+    p1_1 = box1.p1
+    p1_2 = box2.p1
+
+    i1_x = max(p1_1[0], p1_2[0])
+    i1_y = max(p1_1[1], p1_2[1])
+
+    p2_1 = box1.p2
+    p2_2 = box2.p2
+
+    i2_x = min(p2_1[0], p2_2[0])
+    i2_y = min(p2_1[1], p2_2[1])
+
+    # just checking
+
+    if i1_x < i2_x and i1_y < i2_y:
+        # this is the only condition when iou is valid
+        intersection = (i2_x - i1_x) * (i2_y - i1_y)
+        box1_area = box1.area()
+        box2_area = box2.area()
+        union = box1_area + box2_area - intersection
+
+        return intersection/union
+    else:
+        return 0.0
+
+
 class Box:
     def __init__(self, p1, p2, conf):
         self.p1 = p1

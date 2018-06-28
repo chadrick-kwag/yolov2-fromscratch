@@ -10,6 +10,7 @@ from controlparamloader import ControlParamLoader
 import shutil
 from util import pred_processor, Box
 import cv2
+from util.Metric import Metric
 
 
 # load the input and GT
@@ -31,7 +32,7 @@ STEP_NUM = 1000000
 istraining = False
 debug_train_single_input = False
 
-one_epoch_test = True
+one_epoch_test = False
 
 attempt_num = 17
 
@@ -443,21 +444,34 @@ with tf.Session(graph=g1, config=config) as sess:
 
                     boxmanager = Box.BoxManager()
                     gtboxlist = boxmanager.get_gt_boxes(gt[0])
+
+                    single_pred_cxy = pred_out_cxy[0]
+                    single_pred_rwh = pred_out_rwh[0]
+                    single_pred_conf = pred_out_conf[0]
+                    single_gt = gt[0]
+                    single_image = image_input[0]
+
                     boxlist = boxmanager.convert_for_single_image(
-                        pred_out_cxy, pred_out_rwh, pred_out_conf, applyNMS=True)
-                    boxlist_noNMS = boxmanager.convert_for_single_image(
-                        pred_out_cxy, pred_out_rwh, pred_out_conf)
+                        single_pred_cxy, single_pred_rwh, single_pred_conf, applyNMS=True)
+
+                    # boxlist_noNMS = boxmanager.convert_for_single_image(
+                    #     pred_out_cxy, pred_out_rwh, pred_out_conf)
 
                     processed_image = predprocessor.draw_all_boxes(
-                        boxlist, image_input[0], gtboxlist=gtboxlist)
+                        boxlist, single_image, gtboxlist=gtboxlist)
 
                     cv2.imwrite("single_test_infer.png", processed_image)
 
-                    single_boxlist = boxlist_noNMS[0]
-                    processed_image = predprocessor.draw_all_boxes(
-                        single_boxlist, image_input[0], gtboxlist=gtboxlist)
+                    # single_boxlist = boxlist_noNMS[0]
+                    # processed_image = predprocessor.draw_all_boxes(
+                    #     single_boxlist, image_input[0], gtboxlist=gtboxlist)
 
-                    cv2.imwrite("single_test_infer_noNMS.png", processed_image)
+                    # cv2.imwrite("single_test_infer_noNMS.png", processed_image)
+
+                    metric = Metric()
+                    precision, recall = metric.eval(gtboxlist, boxlist)
+
+                    print("precision={}, recall={}".format(precision, recall))
 
                     break
 
